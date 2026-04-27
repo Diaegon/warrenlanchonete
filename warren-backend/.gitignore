@@ -1,0 +1,14 @@
+.env
+rag_data/chroma/
+rag_data/pdfs/
+__pycache__/
+*.pyc
+.pytest_cache/
+htmlcov/
+.coverage
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.sqlite

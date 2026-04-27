@@ -1,0 +1,53 @@
+[project]
+name = "warren-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "alembic",
+    "langchain",
+    "langchain-openai",
+    "langchain-community",
+    "chromadb",
+    "openai",
+    "pymupdf",
+    "python-dotenv",
+    "pydantic",
+    "weasyprint",
+    "jinja2",
+    "httpx",
+    "pydantic-settings",
+    "asyncpg",
+    "greenlet",
+    "aiosqlite",
+    "structlog",
+    "prometheus-fastapi-instrumentator",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+    "prometheus-client",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "unit: pure logic tests, no I/O",
+    "integration: requires real database and ChromaDB",
+    "slow: calls OpenAI API (always mocked in CI)",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/rag/ingest.py"]

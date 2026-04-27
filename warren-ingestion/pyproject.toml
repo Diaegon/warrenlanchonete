@@ -1,0 +1,14 @@
+[project]
+name = "warren-ingestion"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "scrapy",
+    "psycopg2-binary",
+    "sqlalchemy",
+    "python-dotenv",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
