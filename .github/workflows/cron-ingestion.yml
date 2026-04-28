@@ -1,0 +1,29 @@
+name: Cron Ingestion
+
+on:
+  schedule:
+    # Run quarterly: 1st day of Jan, Apr, Jul, Oct at midnight
+    - cron: '0 0 1 1,4,7,10 *'
+  workflow_dispatch:
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run Ingestion Spiders on VPS
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        script: |
+          cd /opt/warrenlanchonete
+          
+          # Build the ingestion image
+          docker build -t warren_ingestion_job ./warren-ingestion
+          
+          # Run the ingestion container connected to the app network
+          docker run --rm \
+            --network warrenlanchonete_warren_network \
+            -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            warren_ingestion_job scrapy crawl fundamentus

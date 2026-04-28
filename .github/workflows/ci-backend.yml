@@ -1,0 +1,47 @@
+name: CI Backend
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'warren-backend/**'
+      - '.github/workflows/ci-backend.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'warren-backend/**'
+      - '.github/workflows/ci-backend.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./warren-backend
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v2
+      with:
+        version: "latest"
+        enable-cache: true
+        cache-dependency-glob: "warren-backend/uv.lock"
+
+    - name: "Set up Python 3.12"
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: uv sync --frozen
+
+    - name: Run linting
+      run: |
+        uv run ruff check .
+        uv run ruff format --check .
+
+    - name: Run tests with coverage
+      run: |
+        uv run pytest --cov=app --cov-report=xml -m "not integration and not slow"

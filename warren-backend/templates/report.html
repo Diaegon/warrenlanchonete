@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relatório Warren Lanchonete</title>
+  <style>
+    /* ── Page Setup ─────────────────────────────────────────── */
+    @page {
+      margin: 2cm 2cm 3cm 2cm;
+      @bottom-center {
+        content: "Esta análise é meramente informativa e não constitui recomendação de investimento. Consulte um assessor de investimentos certificado. Não nos responsabilizamos por decisões de investimento baseadas neste relatório.";
+        font-size: 8pt;
+        color: #6b7280;
+        font-family: sans-serif;
+        text-align: center;
+      }
+    }
+
+    /* ── Base Styles ─────────────────────────────────────────── */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: 11pt;
+      color: #1f2937;
+      background: #ffffff;
+      line-height: 1.5;
+    }
+
+    h1, h2, h3 {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    .header {
+      border-bottom: 3px solid #1d4ed8;
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .header-logo {
+      width: 48px;
+      height: 48px;
+    }
+
+    .header-title {
+      font-size: 20pt;
+      font-weight: 800;
+      color: #1d4ed8;
+      line-height: 1.1;
+    }
+
+    .header-subtitle {
+      font-size: 9pt;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .header-meta {
+      text-align: right;
+      font-size: 9pt;
+      color: #6b7280;
+    }
+
+    .header-disclaimer {
+      font-size: 7pt;
+      color: #9ca3af;
+      margin-top: 4px;
+      max-width: 300px;
+      text-align: right;
+    }
+
+    /* ── Grade Badge ─────────────────────────────────────────── */
+    .grade-badge {
+      display: inline-block;
+      font-size: 36pt;
+      font-weight: 900;
+      width: 80px;
+      height: 80px;
+      line-height: 80px;
+      text-align: center;
+      border-radius: 12px;
+      color: #ffffff;
+    }
+
+    .grade-a  { background: #16a34a; }
+    .grade-am { background: #22c55e; }  /* A- */
+    .grade-bp { background: #2563eb; }  /* B+ */
+    .grade-b  { background: #3b82f6; }
+    .grade-bm { background: #60a5fa; }  /* B- */
+    .grade-cp { background: #d97706; }  /* C+ */
+    .grade-c  { background: #f59e0b; }
+    .grade-cm { background: #fbbf24; }  /* C- */
+    .grade-d  { background: #dc2626; }
+    .grade-f  { background: #7f1d1d; }
+
+    /* ── Portfolio Overview ──────────────────────────────────── */
+    .overview {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+    }
+
+    .overview-grade {
+      flex-shrink: 0;
+    }
+
+    .overview-content {
+      flex: 1;
+    }
+
+    .overview-summary {
+      font-size: 11pt;
+      color: #374151;
+      margin-top: 0.75rem;
+      line-height: 1.6;
+    }
+
+    /* ── Alerts ──────────────────────────────────────────────── */
+    .alerts {
+      margin-top: 1rem;
+    }
+
+    .alert-item {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      font-size: 10pt;
+      color: #92400e;
+    }
+
+    /* ── Section Title ───────────────────────────────────────── */
+    .section-title {
+      font-size: 14pt;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 1.5rem 0 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    /* ── Asset Cards ─────────────────────────────────────────── */
+    .asset-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+
+    .card-header {
+      padding: 1rem 1.25rem;
+      background: #f3f4f6;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-ticker {
+      font-size: 14pt;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .card-name {
+      font-size: 9pt;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .card-sector {
+      font-size: 9pt;
+      color: #4b5563;
+      background: #e5e7eb;
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .card-percentage {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .card-body {
+      padding: 1rem 1.25rem;
+    }
+
+    /* ── Verdict Badge ───────────────────────────────────────── */
+    .verdict-badge {
+      display: inline-block;
+      font-size: 10pt;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: 4px;
+      color: #ffffff;
+    }
+
+    .verdict-aprovado  { background: #22c55e; }
+    .verdict-atencao   { background: #f59e0b; }
+    .verdict-reprovado { background: #ef4444; }
+    .verdict-fii       { background: #6366f1; }
+    .verdict-tesouro   { background: #14b8a6; }
+
+    /* ── Score Bar ───────────────────────────────────────────── */
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .score-label {
+      font-size: 9pt;
+      color: #6b7280;
+      width: 80px;
+      flex-shrink: 0;
+    }
+
+    .score-bar-track {
+      flex: 1;
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      background: #3b82f6;
+    }
+
+    .score-value {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #111827;
+      width: 40px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* ── Financials Table ────────────────────────────────────── */
+    .financials-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.75rem 0;
+      font-size: 9pt;
+    }
+
+    .financials-table th {
+      background: #f3f4f6;
+      color: #6b7280;
+      text-align: left;
+      padding: 0.4rem 0.6rem;
+      font-weight: 600;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .financials-table td {
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid #f3f4f6;
+      color: #374151;
+    }
+
+    .financials-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* ── Buffett Block ───────────────────────────────────────── */
+    .buffett-verdict {
+      background: #eff6ff;
+      border-left: 3px solid #3b82f6;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      font-size: 10pt;
+      color: #1e40af;
+      margin-top: 0.75rem;
+      font-style: italic;
+    }
+
+    .citations-title {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #6b7280;
+      margin: 0.75rem 0 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .citation-item {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.4rem;
+      font-size: 9pt;
+    }
+
+    .citation-year {
+      font-weight: 700;
+      color: #1d4ed8;
+    }
+
+    .citation-passage {
+      color: #374151;
+      font-style: italic;
+    }
+
+    .citation-relevance {
+      color: #6b7280;
+      margin-top: 0.25rem;
+    }
+
+    /* ── Retail Adaptation Note ──────────────────────────────── */
+    .retail-note {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 9pt;
+      color: #166534;
+    }
+
+    /* ── FII Card ────────────────────────────────────────────── */
+    .fii-verdict-pill {
+      display: inline-block;
+      background: #eef2ff;
+      color: #4338ca;
+      border: 1px solid #c7d2fe;
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 10pt;
+    }
+
+    /* ── Tesouro Card ────────────────────────────────────────── */
+    .tesouro-badge {
+      display: inline-block;
+      background: #ccfbf1;
+      color: #0f766e;
+      border: 1px solid #99f6e4;
+      border-radius: 4px;
+      padding: 4px 12px;
+      font-size: 10pt;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <div class="header">
+    <div class="header-brand">
+      <!-- Inline SVG logo -->
+      <svg class="header-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="10" fill="#1d4ed8"/>
+        <text x="7" y="34" font-family="Helvetica" font-weight="900" font-size="28" fill="white">W</text>
+      </svg>
+      <div>
+        <div class="header-title">Warren Lanchonete</div>
+        <div class="header-subtitle">Análise de Portfólio ao Estilo Buffett</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div>Gerado em: {{ analysis_date if analysis_date is defined else "—" }}</div>
+      <div class="header-disclaimer">
+        Análise informativa. Não constitui recomendação de investimento.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Portfolio Overview ───────────────────────────────────── -->
+  <div class="overview">
+    <div class="overview-grade">
+      {% set grade = portfolio_grade %}
+      {% if grade == "A" %}
+        <div class="grade-badge grade-a">A</div>
+      {% elif grade == "A-" %}
+        <div class="grade-badge grade-am">A-</div>
+      {% elif grade == "B+" %}
+        <div class="grade-badge grade-bp">B+</div>
+      {% elif grade == "B" %}
+        <div class="grade-badge grade-b">B</div>
+      {% elif grade == "B-" %}
+        <div class="grade-badge grade-bm">B-</div>
+      {% elif grade == "C+" %}
+        <div class="grade-badge grade-cp">C+</div>
+      {% elif grade == "C" %}
+        <div class="grade-badge grade-c">C</div>
+      {% elif grade == "C-" %}
+        <div class="grade-badge grade-cm">C-</div>
+      {% elif grade == "D" %}
+        <div class="grade-badge grade-d">D</div>
+      {% else %}
+        <div class="grade-badge grade-f">F</div>
+      {% endif %}
+    </div>
+    <div class="overview-content">
+      <h2>Visão Geral do Portfólio</h2>
+      <div class="overview-summary">{{ portfolio_summary }}</div>
+
+      {% if portfolio_alerts %}
+      <div class="alerts">
+        {% for alert in portfolio_alerts %}
+        <div class="alert-item">⚠ {{ alert.message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Asset Cards ──────────────────────────────────────────── -->
+  <div class="section-title">Análise por Ativo</div>
+
+  {% for asset in assets %}
+
+  {# ── STOCK card ───────────────────────────────────────────── #}
+  {% if asset.type == "STOCK" %}
+  <div class="asset-card">
+    <div class="card-header">
+      <div>
+        <div class="card-ticker">{{ asset.ticker }}</div>
+        <div class="card-name">{{ asset.company_name }}</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        {% if asset.sector %}
+        <span class="card-sector">{{ asset.sector }}</span>
+        {% endif %}
+        <span class="card-percentage">{{ "%.1f"|format(asset.percentage) }}%</span>
+      </div>
+    </div>
+    <div class="card-body">
+
+      <!-- Score bar -->
+      <div class="score-row">
+        <span class="score-label">Score Buffett</span>
+        <div class="score-bar-track">
+          <div class="score-bar-fill" style="width: {{ (asset.score / 10 * 100)|int }}%;"></div>
+        </div>
+        <span class="score-value">{{ "%.1f"|format(asset.score) }}</span>
+      </div>
+
+      <!-- Verdict badge -->
+      <div style="margin-bottom:0.75rem;">
+        {% set v = asset.verdict %}
+        {% if v == "APROVADO" %}
+          <span class="verdict-badge verdict-aprovado">APROVADO</span>
+        {% elif v == "ATENÇÃO" %}
+          <span class="verdict-badge verdict-atencao">ATENÇÃO</span>
+        {% else %}
+          <span class="verdict-badge verdict-reprovado">REPROVADO</span>
+        {% endif %}
+      </div>
+
+      <!-- Financials table -->
+      <table class="financials-table">
+        <tr>
+          <th>Indicador</th>
+          <th>Valor</th>
+        </tr>
+        <tr>
+          <td>ROE</td>
+          <td>{% if asset.financials.roe is not none %}{{ "%.1f"|format(asset.financials.roe) }}%{% else %}—{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Margem Líquida</td>
+          <td>{% if asset.financials.margem_liquida is not none %}{{ "%.1f"|format(asset.financials.margem_liquida) }}%{% else %}—{% endif %}</td>
+        </tr>
+        <tr>
+          <td>CAGR Lucro (5a)</td>
+          <td>{% if asset.financials.cagr_lucro is not none %}{{ "%.1f"|format(asset.financials.cagr_lucro) }}%{% else %}—{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Dívida/EBITDA</td>
+          <td>{% if asset.financials.divida_ebitda is not none %}{{ "%.2f"|format(asset.financials.divida_ebitda) }}x{% else %}—{% endif %}</td>
+        </tr>
+      </table>
+
+      <!-- Buffett verdict -->
+      <div class="buffett-verdict">{{ asset.buffett_verdict }}</div>
+
+      <!-- Citations -->
+      {% if asset.buffett_citations %}
+      <div class="citations-title">Citações das Cartas</div>
+      {% for citation in asset.buffett_citations %}
+      <div class="citation-item">
+        <span class="citation-year">[{{ citation.year }}]</span>
+        <span class="citation-passage"> "{{ citation.passage }}"</span>
+        {% if citation.relevance %}
+        <div class="citation-relevance">→ {{ citation.relevance }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      <!-- Retail adaptation note -->
+      {% if asset.retail_adaptation_note %}
+      <div class="retail-note">
+        <strong>Nota para investidor de varejo:</strong> {{ asset.retail_adaptation_note }}
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  {# ── FII card ─────────────────────────────────────────────── #}
+  {% elif asset.type == "FII" %}
+  <div class="asset-card">
+    <div class="card-header">
+      <div>
+        <div class="card-ticker">{{ asset.ticker }}</div>
+        <div class="card-name">Fundo de Investimento Imobiliário</div>
+      </div>
+      <span class="card-percentage">{{ "%.1f"|format(asset.percentage) }}%</span>
+    </div>
+    <div class="card-body" style="text-align:center; padding:1.5rem;">
+      <span class="fii-verdict-pill">{{ asset.verdict }}</span>
+    </div>
+  </div>
+
+  {# ── TESOURO card ─────────────────────────────────────────── #}
+  {% elif asset.type == "TESOURO" %}
+  <div class="asset-card">
+    <div class="card-header">
+      <div>
+        <div class="card-ticker">{{ asset.ticker }}</div>
+        <div class="card-name">Tesouro Direto</div>
+      </div>
+      <span class="card-percentage">{{ "%.1f"|format(asset.percentage) }}%</span>
+    </div>
+    <div class="card-body" style="text-align:center; padding:1.5rem;">
+      <span class="tesouro-badge">{{ asset.verdict }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {% endfor %}
+
+</body>
+</html>

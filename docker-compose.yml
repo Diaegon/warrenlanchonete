@@ -1,0 +1,62 @@
+services:
+  frontend:
+    # We use a base node image and install dependencies on startup to ensure local code hot-reloading works
+    image: node:20-alpine
+    container_name: warren_frontend_dev
+    working_dir: /app
+    volumes:
+      - ./warren-frontend:/app
+      - /app/node_modules # Anonymous volume to isolate container's node_modules from the host
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    # Install dependencies and start the Next.js development server
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./warren-backend
+      dockerfile: Dockerfile
+    container_name: warren_backend_dev
+    volumes:
+      - ./warren-backend:/app
+      - /app/.venv # Anonymous volume to isolate container's .venv from the host
+      - ./rag_data:/app/rag_data # Mount local rag_data so you can ingest PDFs locally
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-warren}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-warren}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-dummy-key}
+      - CHROMA_PERSIST_DIR=/app/rag_data
+    ports:
+      - "8000:8000"
+    # Override the production command to enable uvicorn live-reload
+    command: >
+      sh -c "uv sync && 
+             uv run alembic upgrade head && 
+             uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: warren_postgres_dev
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-warren}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-warren}
+    ports:
+      - "5432:5432" # Exposed to host so you can connect with DBeaver/DataGrip
+    volumes:
+      - warren_db_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-warren} -d ${POSTGRES_DB:-warren}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  warren_db_data_dev:

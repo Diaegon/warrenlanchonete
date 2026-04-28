@@ -1,0 +1,65 @@
+services:
+  frontend:
+    build:
+      context: ./warren-frontend
+      dockerfile: Dockerfile
+    container_name: warren_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # NEXT_PUBLIC_API_URL could be set here to point to the backend or Nginx proxy
+    depends_on:
+      - backend
+    networks:
+      - warren_network
+
+  backend:
+    build:
+      context: ./warren-backend
+      dockerfile: Dockerfile
+    container_name: warren_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CHROMA_PERSIST_DIR=/app/rag_data
+    volumes:
+      - warren_rag_data:/app/rag_data
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - warren_network
+
+  db:
+    image: postgres:16-alpine
+    container_name: warren_postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-warren}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - POSTGRES_DB=${POSTGRES_DB:-warren}
+    volumes:
+      - warren_db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-warren} -d ${POSTGRES_DB:-warren}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - warren_network
+
+volumes:
+  warren_rag_data:
+  warren_db_data:
+
+networks:
+  warren_network:
+    driver: bridge
