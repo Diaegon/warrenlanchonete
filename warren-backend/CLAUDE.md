@@ -56,6 +56,21 @@ CHROMA_PERSIST_DIR=./rag_data
 uv run alembic upgrade head
 ```
 
+### Seed starter database
+
+Use this after migrations to create the first local dataset needed for smoke tests
+and manual API testing. The seed is idempotent, so it is safe to rerun.
+
+```bash
+uv run python -m app.db.seed
+```
+
+Starter rows:
+- `WEGE3` with 2024 financials
+- `PETR4` with 2024 financials
+- `MXRF11` with 2024 placeholder financials
+- `TESOURO`
+
 ### Run ingestion (one-time + quarterly)
 
 ```bash
@@ -63,7 +78,7 @@ uv run alembic upgrade head
 uv run python -m app.rag.ingest
 
 # Financial data is populated by the warren-ingestion repo (Scrapy spiders)
-# This backend does NOT seed financial data — it only reads it
+# This backend only ships a tiny starter seed for local smoke tests
 ```
 
 ### Start development server

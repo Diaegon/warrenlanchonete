@@ -154,7 +154,8 @@ def ingest_pdf(
         log.warning("ingest.file.no_chunks")
         return 0
 
-    ids = [f"{year}_letter_chunk_{i:03d}" for i in range(len(chunks))]
+    source_stem = Path(source_file).stem
+    ids = [f"{source_stem}_chunk_{i:03d}" for i in range(len(chunks))]
     metadatas = [
         {"year": year, "letter_type": "shareholder_letter", "topic": "", "source_file": source_file}
         for _ in chunks
@@ -185,7 +186,10 @@ def run(source_dir: Path | None = None) -> None:
         source_dir = _resolve_source_dir()
 
     collection = get_collection()
-    embedding_fn = OpenAIEmbeddings(model=settings.EMBEDDING_MODEL)
+    embedding_fn = OpenAIEmbeddings(
+        model=settings.EMBEDDING_MODEL,
+        api_key=settings.OPENAI_API_KEY,
+    )
 
     all_files = sorted(source_dir.glob("*.pdf")) + sorted(source_dir.glob("*.html"))
     logger.info("ingest.scan.started", file_count=len(all_files), directory=str(source_dir))

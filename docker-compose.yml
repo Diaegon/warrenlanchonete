@@ -24,7 +24,7 @@ services:
     volumes:
       - ./warren-backend:/app
       - /app/.venv # Anonymous volume to isolate container's .venv from the host
-      - ./rag_data:/app/rag_data # Mount local rag_data so you can ingest PDFs locally
+      - ./warren-backend/rag_data:/app/rag_data # Mount populated backend RAG index
     environment:
       - ENVIRONMENT=development
       - DATABASE_URL=postgresql://${POSTGRES_USER:-warren}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-warren}

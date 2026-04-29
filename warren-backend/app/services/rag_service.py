@@ -49,11 +49,12 @@ class RAGService:
             client=chroma_client,
             collection_name="buffett_letters",
             embedding_function=OpenAIEmbeddings(
-                model=settings.EMBEDDING_MODEL if settings is not None else "text-embedding-3-small"
+                model=settings.EMBEDDING_MODEL if settings is not None else "text-embedding-3-small",
+                api_key=settings.OPENAI_API_KEY if settings is not None else None,
             ),
         )
 
-    def retrieve(
+    async def retrieve(
         self,
         ticker: str,
         sector: str,
@@ -89,7 +90,7 @@ class RAGService:
             docs = self._vectorstore.similarity_search(query, k=k)
             citations = [
                 BuffettCitation(
-                    year=doc.metadata["year"],
+                    year=doc.metadata.get("year", 0),
                     passage=doc.page_content,
                     relevance="",  # Filled in by GPT-4o in AnalysisService
                 )

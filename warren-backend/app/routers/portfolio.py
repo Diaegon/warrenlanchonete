@@ -8,10 +8,11 @@ Routes:
 """
 from __future__ import annotations
 
+import asyncio
 import io
 
 import structlog
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,12 +53,18 @@ async def analyze_portfolio(
     """
     logger.info("portfolio.analyze.request", asset_count=len(request.assets))
 
-    response: PortfolioResponse = await portfolio_service.analyze(request, db)
+    try:
+        response: PortfolioResponse = await asyncio.wait_for(
+            portfolio_service.analyze(request, db),
+            timeout=120,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=503, detail="Portfolio analysis timed out")
 
     if format and format.lower() == "pdf":
         logger.info("portfolio.pdf.export", grade=response.portfolio_grade)
         pdf_service = PDFService()
-        pdf_bytes = pdf_service.generate(response)
+        pdf_bytes = await pdf_service.generate(response)
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",

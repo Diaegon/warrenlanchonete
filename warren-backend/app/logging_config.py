@@ -75,6 +75,6 @@ def configure_logging(environment: str = "development", log_level: str = "INFO")
         processors=processors,
         wrapper_class=structlog.make_filtering_bound_logger(log_level_int),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )

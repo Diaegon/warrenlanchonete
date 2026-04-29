@@ -26,5 +26,5 @@ openai_duration_seconds = Histogram(
 rag_results_count = Histogram(
     "warren_rag_results_total",
     "Number of RAG results returned per retrieval query",
-    buckets=(0, 1, 2, 3, 5, 10),
+    buckets=(1, 2, 3, 5, 10),
 )

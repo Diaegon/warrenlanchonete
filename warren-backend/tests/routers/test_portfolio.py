@@ -117,7 +117,7 @@ class TestPortfolioAnalyze:
 
         with patch("app.routers.portfolio.PDFService") as mock_pdf_cls:
             mock_pdf_instance = mock_pdf_cls.return_value
-            mock_pdf_instance.generate.return_value = b"%PDF-1.4 fake content"
+            mock_pdf_instance.generate = AsyncMock(return_value=b"%PDF-1.4 fake content")
 
             response = await async_client.post(
                 "/api/portfolio/analyze?format=pdf", json=_VALID_REQUEST
@@ -125,6 +125,17 @@ class TestPortfolioAnalyze:
 
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/pdf"
+
+    async def test_analyze_returns_503_on_timeout(self, async_client: AsyncClient) -> None:
+        """asyncio.TimeoutError from wait_for returns 503 with 'timed out' detail."""
+        import asyncio
+        from unittest.mock import patch
+
+        with patch("app.routers.portfolio.asyncio.wait_for", side_effect=asyncio.TimeoutError()):
+            response = await async_client.post("/api/portfolio/analyze", json=_VALID_REQUEST)
+
+        assert response.status_code == 503
+        assert "timed out" in response.json()["detail"].lower()
 
     async def test_empty_assets_returns_422(self, async_client: AsyncClient) -> None:
         """Empty assets list returns 422."""

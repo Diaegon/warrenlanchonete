@@ -197,7 +197,12 @@ async def ready(request: Request) -> JSONResponse:
         issues.append("ChromaDB not initialized")
     else:
         try:
-            chroma_client.get_collection("buffett_letters")
+            collection = chroma_client.get_collection("buffett_letters")
+            if collection.count() == 0:
+                issues.append(
+                    "ChromaDB collection 'buffett_letters' is empty — "
+                    "run: uv run python -m app.rag.ingest"
+                )
         except Exception as exc:
             issues.append(f"ChromaDB collection unavailable: {exc}")
 

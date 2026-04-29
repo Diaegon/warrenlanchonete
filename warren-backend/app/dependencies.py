@@ -8,31 +8,16 @@ Provides:
 """
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
-
 import structlog
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.db.session import get_db as _get_db_from_session
+from app.db.session import get_db  # noqa: F401 — re-exported as single source of truth
 from app.services.analysis_service import AnalysisService
 from app.services.portfolio_service import PortfolioService
 
 logger = structlog.get_logger(__name__)
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Yield an async database session for FastAPI dependency injection.
-
-    Wraps the session generator from app.db.session. Tests override this
-    dependency with the in-memory SQLite fixture.
-
-    Yields:
-        AsyncSession: Open async SQLAlchemy session.
-    """
-    async for session in _get_db_from_session():
-        yield session
 
 
 def get_rag_service(request: Request):
@@ -62,19 +47,26 @@ if settings is not None:
     )
 
 
-def get_analysis_service() -> AnalysisService | None:
+def get_analysis_service() -> AnalysisService:
     """Return the AnalysisService singleton.
 
+    Raises:
+        HTTPException 503 if the singleton was not initialized (missing OPENAI_API_KEY).
+
     Returns:
-        AnalysisService instance configured with settings, or None if
-        settings are unavailable (test environment without .env).
+        AnalysisService instance configured with settings.
     """
+    if _analysis_service_singleton is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis service not initialized. Check OPENAI_API_KEY configuration.",
+        )
     return _analysis_service_singleton
 
 
 def get_portfolio_service(
     rag_service=Depends(get_rag_service),
-    analysis_service=Depends(get_analysis_service),
+    analysis_service: AnalysisService = Depends(get_analysis_service),
 ) -> PortfolioService:
     """Create and return a PortfolioService with injected dependencies.
 

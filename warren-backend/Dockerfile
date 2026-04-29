@@ -1,6 +1,6 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
-# Install uv for fast dependency management
+# Copy uv from official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 ENV UV_COMPILE_BYTECODE=1 \
@@ -8,23 +8,47 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# Copy dependencies first to leverage Docker cache
-COPY pyproject.toml uv.lock ./
+# WeasyPrint (PDF generation) needs pango at import time.
+# fontconfig + fc-cache: pre-generate font cache as root so appuser doesn't
+# need write access to /var/cache/fontconfig at runtime.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcairo2 \
+    libffi8 \
+    libgdk-pixbuf-2.0-0 \
+    libglib2.0-0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libpangoft2-1.0-0 \
+    fontconfig \
+    fonts-dejavu-core \
+    shared-mime-info \
+    && fc-cache -fv \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies into a virtual environment in /app/.venv
+# Install Python dependencies first (separate layer — invalidated only when
+# pyproject.toml / uv.lock changes, not on every code change).
+COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
-# Copy the rest of the application
+# Copy application code
 COPY . .
-
-# Install the application package
 RUN uv sync --frozen
 
-# Ensure the virtual environment is in the PATH
+# Copy entrypoint and make it executable (must happen as root, before USER switch)
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Add venv to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Expose the API port
-EXPOSE 8000
+# Non-root user — without --home Debian sets home to /nonexistent which breaks
+# fontconfig's user-level cache write attempt at runtime.
+RUN addgroup --system --gid 1001 appgroup && \
+    adduser --system --uid 1001 --ingroup appgroup --home /home/appuser appuser && \
+    chown -R appuser:appgroup /app /home/appuser
 
-# Run uvicorn server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+ENV HOME=/home/appuser
+USER appuser
+
+EXPOSE 8000
+ENTRYPOINT ["/entrypoint.sh"]

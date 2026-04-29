@@ -8,6 +8,11 @@ Provides:
 """
 from __future__ import annotations
 
+import os
+
+# Must be set before any app module is imported so config.py allows settings=None
+os.environ.setdefault("TESTING", "1")
+
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock
 
@@ -113,7 +118,6 @@ async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, 
         get_db: Returns the in-memory SQLite db_session fixture.
         get_portfolio_service: Returns a MagicMock (AI services mocked).
         get_rag_service: Returns a MagicMock.
-        get_analysis_service: Returns a MagicMock.
 
     Args:
         db_session: In-memory SQLite session from db_session fixture.

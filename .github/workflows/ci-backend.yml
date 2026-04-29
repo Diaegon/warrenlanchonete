@@ -1,47 +1,58 @@
 name: CI Backend
 
+# Runs on PRs and on pushes to non-main branches.
+# Main is handled by cd-production.yml which includes its own test gate.
 on:
   push:
-    branches: [ "main" ]
+    branches-ignore: [main]
     paths:
       - 'warren-backend/**'
       - '.github/workflows/ci-backend.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
     paths:
       - 'warren-backend/**'
       - '.github/workflows/ci-backend.yml'
 
 jobs:
   test:
+    name: Lint & Test
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./warren-backend
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v2
-      with:
-        version: "latest"
-        enable-cache: true
-        cache-dependency-glob: "warren-backend/uv.lock"
+      # WeasyPrint (PDF generation) needs pango at import time.
+      # Same packages installed in warren-backend/Dockerfile.
+      - name: Install system dependencies (WeasyPrint)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0
 
-    - name: "Set up Python 3.12"
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.12"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "warren-backend/uv.lock"
 
-    - name: Install dependencies
-      run: uv sync --frozen
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Run linting
-      run: |
-        uv run ruff check .
-        uv run ruff format --check .
+      - name: Install dependencies
+        run: uv sync --frozen
 
-    - name: Run tests with coverage
-      run: |
-        uv run pytest --cov=app --cov-report=xml -m "not integration and not slow"
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Test with coverage
+        env:
+          TESTING: "1"
+        run: uv run pytest --cov=app --cov-report=xml -m "not integration and not slow"

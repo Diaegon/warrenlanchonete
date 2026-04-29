@@ -7,7 +7,11 @@ from __future__ import annotations
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+# Valid portfolio grade values produced by the grading scale in AnalysisService
+PortfolioGrade = Literal["A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"]
 
 
 class AssetType(str, Enum):
@@ -27,7 +31,7 @@ class AssetInput(BaseModel):
         percentage: Portfolio allocation percentage. Must be > 0 and <= 100.
     """
 
-    ticker: str = Field(..., min_length=1, max_length=10)
+    ticker: str = Field(..., min_length=1, max_length=10, pattern=r"^[A-Z0-9]+$")
     type: AssetType
     percentage: float = Field(..., gt=0, le=100)
 
@@ -195,7 +199,12 @@ class PortfolioResponse(BaseModel):
         assets: Per-asset analysis results (discriminated union by type).
     """
 
-    portfolio_grade: str
+    portfolio_grade: PortfolioGrade
     portfolio_summary: str
     portfolio_alerts: list[PortfolioAlert]
     assets: list[AssetResponse]
+
+    @field_validator("portfolio_grade", mode="before")
+    @classmethod
+    def strip_grade_whitespace(cls, v: str) -> str:
+        return v.strip() if isinstance(v, str) else v

@@ -54,7 +54,7 @@ def _make_portfolio_response():
 class TestPDFService:
     """Tests for PDFService.generate()."""
 
-    def test_generate_returns_bytes(self) -> None:
+    async def test_generate_returns_bytes(self) -> None:
         """generate() returns bytes when WeasyPrint succeeds."""
         from app.services.pdf_service import PDFService
 
@@ -64,12 +64,12 @@ class TestPDFService:
         with patch("app.services.pdf_service.weasyprint") as mock_wp:
             mock_wp.HTML.return_value = mock_html_obj
             service = PDFService()
-            result = service.generate(_make_portfolio_response())
+            result = await service.generate(_make_portfolio_response())
 
         assert isinstance(result, bytes)
         assert len(result) > 0
 
-    def test_generate_raises_pdf_generation_error_on_weasyprint_exception(self) -> None:
+    async def test_generate_raises_pdf_generation_error_on_weasyprint_exception(self) -> None:
         """generate() raises PDFGenerationError when WeasyPrint raises."""
         from app.exceptions import PDFGenerationError
         from app.services.pdf_service import PDFService
@@ -81,9 +81,9 @@ class TestPDFService:
             mock_wp.HTML.return_value = mock_html_obj
             service = PDFService()
             with pytest.raises(PDFGenerationError):
-                service.generate(_make_portfolio_response())
+                await service.generate(_make_portfolio_response())
 
-    def test_generate_calls_weasyprint_html_with_string(self) -> None:
+    async def test_generate_calls_weasyprint_html_with_string(self) -> None:
         """generate() passes rendered HTML string to weasyprint.HTML."""
         from app.services.pdf_service import PDFService
 
@@ -93,15 +93,14 @@ class TestPDFService:
         with patch("app.services.pdf_service.weasyprint") as mock_wp:
             mock_wp.HTML.return_value = mock_html_obj
             service = PDFService()
-            service.generate(_make_portfolio_response())
+            await service.generate(_make_portfolio_response())
 
         # Verify weasyprint.HTML was called with a string keyword arg
         call_kwargs = mock_wp.HTML.call_args
         assert call_kwargs is not None
-        # HTML should be called with string= kwarg
         assert "string" in call_kwargs.kwargs or len(call_kwargs.args) > 0
 
-    def test_generate_includes_grade_in_html(self) -> None:
+    async def test_generate_includes_grade_in_html(self) -> None:
         """The rendered HTML includes the portfolio grade."""
         from app.services.pdf_service import PDFService
 
@@ -117,7 +116,7 @@ class TestPDFService:
         with patch("app.services.pdf_service.weasyprint") as mock_wp:
             mock_wp.HTML.side_effect = capture_html
             service = PDFService()
-            service.generate(_make_portfolio_response())
+            await service.generate(_make_portfolio_response())
 
         assert rendered_html is not None
         assert "B+" in rendered_html

@@ -1,36 +1,115 @@
 name: CD Production
 
+# Runs on every push to main.
+# Flow: test → build image → deploy via self-hosted runner on VPS.
 on:
-  workflow_run:
-    workflows: ["CI Backend", "CI Frontend", "CI Ingestion"]
+  push:
     branches: [main]
-    types: 
-      - completed
-  workflow_dispatch:
 
 jobs:
-  deploy:
+  # ── Gate: tests must pass before anything is built or deployed ──────────────
+  test:
+    name: Test Backend
     runs-on: ubuntu-latest
-    # Only run if the triggering CI workflows were successful
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    
+    defaults:
+      run:
+        working-directory: ./warren-backend
+
     steps:
-    - name: Deploy to Hostinger VPS
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.VPS_HOST }}
-        username: ${{ secrets.VPS_USERNAME }}
-        key: ${{ secrets.VPS_SSH_KEY }}
-        script: |
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies (WeasyPrint)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "warren-backend/uv.lock"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Test
+        env:
+          TESTING: "1"
+        run: uv run pytest -m "not integration and not slow" -q
+
+  # ── Build backend image and push to GHCR ────────────────────────────────────
+  build:
+    name: Build & Push Image
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Two tags: short git SHA (for rollback) and 'latest' (for deploy)
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/diaegon/warrenlanchonete-backend
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./warren-backend
+          file: warren-backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  # ── Deploy: runs directly on the VPS via self-hosted runner ─────────────────
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: self-hosted
+    permissions:
+      packages: read
+
+    steps:
+      # Authenticate so the VPS runner can pull from GHCR
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+          docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      # Pull the new image while the old container is still serving traffic
+      - name: Pull new image
+        run: |
           cd /opt/warrenlanchonete
-          git pull origin main
-          
-          # Create or update .env file with secrets
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
-          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-          
-          # Apply database migrations
-          docker-compose -f docker-compose.prod.yml run --rm backend uv run alembic upgrade head
-          
-          # Rebuild and restart containers with zero downtime (where supported)
-          docker-compose -f docker-compose.prod.yml up -d --build
+          docker compose -f docker-compose.prod.yml pull backend
+
+      # Restart only the backend (db and nginx keep running untouched).
+      # The entrypoint script runs alembic migrations before uvicorn starts.
+      - name: Restart backend
+        run: |
+          cd /opt/warrenlanchonete
+          docker compose -f docker-compose.prod.yml up -d backend
+
+      # Remove dangling images from previous builds to free disk space
+      - name: Clean up old images
+        run: docker image prune -f

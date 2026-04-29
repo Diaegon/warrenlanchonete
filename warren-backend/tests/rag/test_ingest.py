@@ -155,6 +155,39 @@ class TestIngestPDF:
                 f"ID '{doc_id}' does not match expected pattern"
             )
 
+    def test_chunk_ids_differ_for_two_files_same_year(self, chroma_client):
+        """Two different files for the same year must not produce colliding chunk IDs."""
+        from app.rag.ingest import ingest_pdf
+
+        passage = (
+            "Price is what you pay. Value is what you get. "
+            "This principle separates great investors from average ones who focus "
+            "solely on price movement without understanding underlying business value."
+        )
+
+        mock_ef = MagicMock()
+        mock_ef.embed_documents.return_value = [[0.1] * 10]
+        collection = chroma_client.get_or_create_collection("test_no_collision_2000")
+
+        # Ingest "2000.pdf" (bare year filename)
+        mock_doc1 = self._make_mock_fitz_doc([passage])
+        with patch("app.rag.ingest.fitz.open", return_value=mock_doc1):
+            ingest_pdf("2000.pdf", 2000, collection, mock_ef, pdf_path="/fake/2000.pdf")
+
+        count_after_first = collection.count()
+        assert count_after_first == 1
+
+        # Ingest "2000_letter.pdf" — same year, different source file
+        mock_doc2 = self._make_mock_fitz_doc([passage])
+        with patch("app.rag.ingest.fitz.open", return_value=mock_doc2):
+            ingest_pdf("2000_letter.pdf", 2000, collection, mock_ef, pdf_path="/fake/2000_letter.pdf")
+
+        # Both chunks must be stored — IDs must not collide
+        assert collection.count() == 2, (
+            f"Expected 2 documents after ingesting two distinct files for year 2000, "
+            f"got {collection.count()}. IDs likely collided."
+        )
+
     def test_ingestion_is_idempotent(self, chroma_client):
         """Second run on the same file should not increase document count."""
         from app.rag.ingest import ingest_pdf

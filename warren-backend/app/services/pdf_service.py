@@ -3,12 +3,12 @@
 Renders templates/report.html with the portfolio analysis data and produces
 a PDF binary suitable for streaming to the HTTP client.
 
-This service is CPU-bound (WeasyPrint renders to PDF synchronously).
-For v1 it is called synchronously from the router; if profiling reveals
-event-loop blocking under load, wrap with run_in_executor.
+WeasyPrint is CPU-bound (500ms–2s). The generate() method runs it in a thread
+pool executor to avoid blocking the async event loop.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 from datetime import date
 from pathlib import Path
@@ -22,8 +22,8 @@ from app.schemas.portfolio import PortfolioResponse
 
 logger = structlog.get_logger(__name__)
 
-# Resolve templates directory relative to this file's package root
-_TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates"
+# .resolve() normalises symlinks and makes the path absolute so it survives moves
+_TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
 
 
 class PDFService:
@@ -34,20 +34,28 @@ class PDFService:
 
     Example:
         service = PDFService()
-        pdf_bytes = service.generate(portfolio_response)
+        pdf_bytes = await service.generate(portfolio_response)
         # Stream to HTTP client
         return StreamingResponse(io.BytesIO(pdf_bytes), media_type="application/pdf")
     """
 
     def __init__(self, templates_dir: str | Path | None = None) -> None:
         templates_path = Path(templates_dir) if templates_dir else _TEMPLATES_DIR
+        if not templates_path.exists():
+            raise RuntimeError(
+                f"Templates directory not found: {templates_path}. "
+                "Ensure templates/ exists at the project root."
+            )
         self._jinja_env = Environment(
             loader=FileSystemLoader(str(templates_path)),
             autoescape=True,
         )
 
-    def generate(self, portfolio_response: PortfolioResponse) -> bytes:
+    async def generate(self, portfolio_response: PortfolioResponse) -> bytes:
         """Render HTML template and convert to PDF.
+
+        Jinja2 rendering is synchronous and fast (< 5ms). WeasyPrint rendering
+        is CPU-bound and runs in a thread pool executor to avoid blocking the loop.
 
         Args:
             portfolio_response: Validated portfolio analysis response.
@@ -60,15 +68,18 @@ class PDFService:
         """
         logger.info("pdf.generation.started", grade=portfolio_response.portfolio_grade)
 
-        # Render Jinja2 template
+        # Render Jinja2 template (fast, synchronous)
         template = self._jinja_env.get_template("report.html")
         context = portfolio_response.model_dump()
         context["analysis_date"] = date.today().strftime("%d/%m/%Y")
         html_content = template.render(**context)
 
-        # Convert to PDF
+        # WeasyPrint is CPU-bound — run in thread pool to avoid blocking the event loop
         try:
-            pdf_bytes: bytes = weasyprint.HTML(string=html_content).write_pdf()
+            loop = asyncio.get_running_loop()
+            pdf_bytes: bytes = await loop.run_in_executor(
+                None, lambda: weasyprint.HTML(string=html_content).write_pdf()
+            )
         except Exception as exc:
             logger.error("pdf.generation.failed", error=str(exc))
             raise PDFGenerationError(f"WeasyPrint failed: {exc}") from exc

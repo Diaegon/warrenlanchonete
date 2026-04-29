@@ -167,6 +167,12 @@ class PortfolioService:
             company, financial = await self._get_company_and_financials(asset.ticker, db)
             stock_pairs.append((asset, company, financial))
 
+        # Validate FII and TESOURO tickers against the DB
+        for asset in fiis:
+            await self._validate_ticker_in_db(asset.ticker.upper(), "FII", db)
+        for asset in tesouros:
+            await self._validate_ticker_in_db(asset.ticker.upper(), "TESOURO", db)
+
         # Concurrent per-stock analysis
         stock_tasks = [
             self._analyze_single_stock(asset, company, financial)
@@ -225,19 +231,25 @@ class PortfolioService:
     ) -> tuple[Company, Financial]:
         """Query company and its most recent financial record.
 
+        Uses an outer join so that a company with no financials returns
+        (company, None) rather than no rows, allowing a clear error message
+        that distinguishes "ticker not found" from "no financial data yet".
+
         Args:
-            ticker: B3 ticker symbol to look up.
+            ticker: B3 ticker symbol to look up (normalized to uppercase).
             db: Async database session.
 
         Returns:
             Tuple of (Company, Financial) for the most recent year.
 
         Raises:
-            TickerNotFoundError: If the ticker is not in the companies table.
+            TickerNotFoundError: If the ticker is not in the companies table,
+                or if the company has no financial data yet.
         """
+        ticker = ticker.upper()
         stmt = (
             select(Company, Financial)
-            .join(Financial, Company.id == Financial.company_id)
+            .outerjoin(Financial, Company.id == Financial.company_id)
             .where(Company.ticker == ticker)
             .order_by(Financial.year.desc())
             .limit(1)
@@ -246,7 +258,31 @@ class PortfolioService:
         row = result.first()
         if row is None:
             raise TickerNotFoundError(ticker)
-        return row[0], row[1]
+        company, financial = row
+        if financial is None:
+            raise TickerNotFoundError(ticker)
+        return company, financial
+
+    async def _validate_ticker_in_db(
+        self, ticker: str, asset_type: str, db: AsyncSession
+    ) -> None:
+        """Verify a ticker exists in the companies table with the given asset_type.
+
+        Args:
+            ticker: B3 ticker symbol (already uppercased by caller).
+            asset_type: Expected asset type ('FII' or 'TESOURO').
+            db: Async database session.
+
+        Raises:
+            TickerNotFoundError: If no company with this ticker and asset_type exists.
+        """
+        stmt = select(Company.id).where(
+            Company.ticker == ticker,
+            Company.asset_type == asset_type,
+        )
+        result = await db.execute(stmt)
+        if result.scalar_one_or_none() is None:
+            raise TickerNotFoundError(ticker)
 
     async def _analyze_single_stock(
         self,

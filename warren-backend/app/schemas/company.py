@@ -70,3 +70,5 @@ class CompanyDetailSchema(CompanySchema):
     """
 
     financials: list[FinancialHistoryItem]
+
+    model_config = ConfigDict(from_attributes=True)

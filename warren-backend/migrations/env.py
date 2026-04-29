@@ -7,7 +7,10 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
+
+load_dotenv()
 
 # Import all models so Base.metadata is populated before autogenerate
 from app.db.session import Base  # noqa: F401
@@ -25,16 +28,18 @@ if config.config_file_name is not None:
 # Metadata for autogenerate support
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url from environment variable if provided
-database_url = os.environ.get("DATABASE_URL")
-if database_url:
-    # Convert async URLs to sync for Alembic (Alembic uses sync engine)
-    sync_url = (
-        database_url
+def _make_sync_url(url: str) -> str:
+    """Convert async SQLAlchemy URLs to sync URLs for Alembic."""
+    return (
+        url
         .replace("postgresql+asyncpg://", "postgresql://")
         .replace("sqlite+aiosqlite://", "sqlite://")
     )
-    config.set_main_option("sqlalchemy.url", sync_url)
+
+
+# Prefer DATABASE_URL from shell/.env, otherwise use alembic.ini dev default.
+database_url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+config.set_main_option("sqlalchemy.url", _make_sync_url(database_url))
 
 
 def run_migrations_offline() -> None:

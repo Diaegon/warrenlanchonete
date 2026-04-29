@@ -4,6 +4,8 @@ All configuration is read from environment variables or a .env file.
 Never use os.environ.get() directly in service or router code —
 always import `settings` from this module.
 """
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -52,8 +54,14 @@ class Settings(BaseSettings):
 # The test suite overrides via direct instantiation with kwargs.
 try:
     settings = Settings()
-except Exception:
-    # During testing, individual test cases instantiate Settings directly.
-    # The singleton is provided as a fallback; tests that need custom settings
-    # create their own instances.
+except Exception as _settings_exc:
+    if os.environ.get("TESTING") != "1":
+        raise RuntimeError(
+            "Failed to load application settings. "
+            "Ensure OPENAI_API_KEY and DATABASE_URL are set in your environment or .env file. "
+            f"Original error: {_settings_exc}"
+        ) from _settings_exc
+    # In test environments (TESTING=1), allow settings=None so modules can import
+    # without a real .env file. Tests that need specific settings create their own
+    # Settings instances directly.
     settings = None  # type: ignore[assignment]

@@ -158,6 +158,28 @@ class TestAnalyzeStock:
                     citations=_make_citations(),
                 )
 
+    async def test_raises_openai_unavailable_on_rate_limit_error(self):
+        """analyze_stock raises OpenAIUnavailableError on RateLimitError (HTTP 429)."""
+        from app.services.analysis_service import AnalysisService
+
+        mock_openai_client = MagicMock()
+        mock_openai_client.chat.completions.create = AsyncMock(
+            side_effect=openai.RateLimitError(
+                message="Rate limit exceeded",
+                response=MagicMock(status_code=429, headers={}),
+                body=None,
+            )
+        )
+
+        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+            svc = self._make_service()
+            with pytest.raises(OpenAIUnavailableError):
+                await svc.analyze_stock(
+                    company=_make_mock_company(),
+                    financials=_make_mock_financial(),
+                    citations=_make_citations(),
+                )
+
     async def test_raises_openai_unavailable_on_invalid_json(self):
         """analyze_stock raises OpenAIUnavailableError when response is not valid JSON."""
         from app.services.analysis_service import AnalysisService
@@ -195,6 +217,22 @@ class TestGeneratePortfolioSummary:
             model="gpt-4o",
             timeout=30,
         )
+
+    async def test_raises_openai_unavailable_on_rate_limit_error(self):
+        """generate_portfolio_summary raises OpenAIUnavailableError on RateLimitError."""
+        mock_openai_client = MagicMock()
+        mock_openai_client.chat.completions.create = AsyncMock(
+            side_effect=openai.RateLimitError(
+                message="Rate limit exceeded",
+                response=MagicMock(status_code=429, headers={}),
+                body=None,
+            )
+        )
+
+        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+            svc = self._make_service()
+            with pytest.raises(OpenAIUnavailableError):
+                await svc.generate_portfolio_summary(assets=[], alerts=[])
 
     async def test_parses_valid_json_into_portfolio_summary(self):
         """generate_portfolio_summary returns PortfolioSummary from valid JSON."""

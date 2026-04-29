@@ -32,6 +32,7 @@ class TestSettings:
         settings = Settings(
             OPENAI_API_KEY="sk-test",
             DATABASE_URL="postgresql://localhost/test",
+            _env_file=None,
         )
         assert settings.CHROMA_PERSIST_DIR == "./rag_data"
         assert settings.OPENAI_MODEL == "gpt-4o"
@@ -42,17 +43,19 @@ class TestSettings:
         assert settings.CORS_ORIGINS == "http://localhost:3000"
         assert settings.LOG_LEVEL == "INFO"
 
-    def test_settings_missing_openai_key_raises(self) -> None:
+    def test_settings_missing_openai_key_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Missing OPENAI_API_KEY raises ValidationError."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         from app.config import Settings
         with pytest.raises(ValidationError):
-            Settings(DATABASE_URL="postgresql://localhost/test")
+            Settings(DATABASE_URL="postgresql://localhost/test", _env_file=None)
 
-    def test_settings_missing_database_url_raises(self) -> None:
+    def test_settings_missing_database_url_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Missing DATABASE_URL raises ValidationError."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
         from app.config import Settings
         with pytest.raises(ValidationError):
-            Settings(OPENAI_API_KEY="sk-test")
+            Settings(OPENAI_API_KEY="sk-test", _env_file=None)
 
     def test_settings_custom_values(self) -> None:
         """Custom optional values override defaults."""

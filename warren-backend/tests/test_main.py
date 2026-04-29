@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestHealthEndpoint:
@@ -26,6 +27,104 @@ class TestUnknownRoute:
         """GET on unknown route returns 404."""
         response = await async_client.get("/nonexistent-route")
         assert response.status_code == 404
+
+
+class TestReadyEndpoint:
+    """Tests for the /ready readiness check endpoint."""
+
+    def _mock_db(self):
+        """Return a context-manager mock for AsyncSessionLocal."""
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_session.execute = AsyncMock()
+        mock_cls = MagicMock(return_value=mock_session)
+        return mock_cls
+
+    async def test_ready_returns_503_when_chroma_not_initialized(
+        self, async_client: AsyncClient
+    ) -> None:
+        """GET /ready returns 503 when app.state has no chroma_client."""
+        from app.main import app
+        # Ensure chroma_client is absent from state
+        if hasattr(app.state, "chroma_client"):
+            del app.state.chroma_client
+
+        with patch("app.db.session.AsyncSessionLocal", self._mock_db()):
+            response = await async_client.get("/ready")
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert "ChromaDB not initialized" in data["detail"]
+
+    async def test_ready_returns_503_when_collection_empty(
+        self, async_client: AsyncClient
+    ) -> None:
+        """GET /ready returns 503 when buffett_letters collection is empty."""
+        from app.main import app
+
+        mock_collection = MagicMock()
+        mock_collection.count.return_value = 0
+        mock_chroma = MagicMock()
+        mock_chroma.get_collection.return_value = mock_collection
+        app.state.chroma_client = mock_chroma
+
+        try:
+            with patch("app.db.session.AsyncSessionLocal", self._mock_db()):
+                response = await async_client.get("/ready")
+        finally:
+            del app.state.chroma_client
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert "empty" in data["detail"]
+
+    async def test_ready_returns_503_when_db_unavailable(
+        self, async_client: AsyncClient
+    ) -> None:
+        """GET /ready returns 503 when DB connection fails."""
+        from app.main import app
+
+        mock_collection = MagicMock()
+        mock_collection.count.return_value = 5
+        mock_chroma = MagicMock()
+        mock_chroma.get_collection.return_value = mock_collection
+        app.state.chroma_client = mock_chroma
+
+        try:
+            failing_session_cls = MagicMock(side_effect=Exception("Connection refused"))
+            with patch("app.db.session.AsyncSessionLocal", failing_session_cls):
+                response = await async_client.get("/ready")
+        finally:
+            del app.state.chroma_client
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["status"] == "degraded"
+        assert "DB unavailable" in data["detail"]
+
+    async def test_ready_returns_200_when_all_checks_pass(
+        self, async_client: AsyncClient
+    ) -> None:
+        """GET /ready returns 200 when DB and ChromaDB are both healthy."""
+        from app.main import app
+
+        mock_collection = MagicMock()
+        mock_collection.count.return_value = 42
+        mock_chroma = MagicMock()
+        mock_chroma.get_collection.return_value = mock_collection
+        app.state.chroma_client = mock_chroma
+
+        try:
+            with patch("app.db.session.AsyncSessionLocal", self._mock_db()):
+                response = await async_client.get("/ready")
+        finally:
+            del app.state.chroma_client
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
 
 
 class TestCORSHeaders:

@@ -228,3 +228,86 @@ class TestResponseSchemas:
             roe=None, margem_liquida=None, cagr_lucro=None, divida_ebitda=None
         )
         assert snap.roe is None
+
+
+class TestAssetInputTickerPattern:
+    """Tests for the ticker pattern validator on AssetInput."""
+
+    def test_lowercase_ticker_raises_validation_error(self) -> None:
+        """Lowercase tickers are rejected — B3 tickers are always uppercase."""
+        from app.schemas.portfolio import AssetInput, AssetType
+        with pytest.raises(ValidationError):
+            AssetInput(ticker="wege3", type=AssetType.STOCK, percentage=100)
+
+    def test_ticker_with_special_chars_raises_validation_error(self) -> None:
+        """Tickers with hyphens, underscores, or spaces are rejected."""
+        from app.schemas.portfolio import AssetInput, AssetType
+        for bad_ticker in ["WEG-3", "WEG_3", "WEG 3", "WEG.3"]:
+            with pytest.raises(ValidationError):
+                AssetInput(ticker=bad_ticker, type=AssetType.STOCK, percentage=100)
+
+    def test_uppercase_alphanumeric_ticker_valid(self) -> None:
+        """Standard B3 tickers (uppercase + digits) are accepted."""
+        from app.schemas.portfolio import AssetInput, AssetType
+        for good_ticker in ["WEGE3", "MXRF11", "TESOURO", "PETR4", "BBAS3"]:
+            asset = AssetInput(ticker=good_ticker, type=AssetType.STOCK, percentage=100)
+            assert asset.ticker == good_ticker
+
+
+class TestPortfolioGradeValidation:
+    """Tests for portfolio_grade field validation in PortfolioResponse."""
+
+    def _make_fii_response(self) -> dict:
+        return {
+            "portfolio_summary": "Teste.",
+            "portfolio_alerts": [],
+            "assets": [{"ticker": "MXRF11", "type": "FII", "percentage": 100.0}],
+        }
+
+    def test_valid_grades_are_accepted(self) -> None:
+        """All valid letter grades are accepted by PortfolioResponse."""
+        from app.schemas.portfolio import PortfolioResponse
+        valid_grades = ["A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"]
+        for grade in valid_grades:
+            resp = PortfolioResponse(portfolio_grade=grade, **self._make_fii_response())
+            assert resp.portfolio_grade == grade
+
+    def test_grade_with_trailing_whitespace_is_stripped(self) -> None:
+        """portfolio_grade with surrounding whitespace is stripped to its base value."""
+        from app.schemas.portfolio import PortfolioResponse
+        resp = PortfolioResponse(portfolio_grade="  B+  ", **self._make_fii_response())
+        assert resp.portfolio_grade == "B+"
+
+    def test_invalid_grade_raises_validation_error(self) -> None:
+        """An out-of-scale grade like 'A+' raises ValidationError."""
+        from app.schemas.portfolio import PortfolioResponse
+        with pytest.raises(ValidationError):
+            PortfolioResponse(portfolio_grade="A+", **self._make_fii_response())
+
+    def test_empty_grade_raises_validation_error(self) -> None:
+        """An empty string grade raises ValidationError."""
+        from app.schemas.portfolio import PortfolioResponse
+        with pytest.raises(ValidationError):
+            PortfolioResponse(portfolio_grade="", **self._make_fii_response())
+
+
+class TestPortfolioSummaryGradeValidation:
+    """Tests for portfolio_grade in the internal PortfolioSummary model."""
+
+    def test_valid_grade_accepted(self) -> None:
+        """PortfolioSummary accepts a valid grade."""
+        from app.services.analysis_service import PortfolioSummary
+        s = PortfolioSummary(portfolio_grade="B+", portfolio_summary="Ok.")
+        assert s.portfolio_grade == "B+"
+
+    def test_grade_with_whitespace_is_stripped(self) -> None:
+        """PortfolioSummary strips whitespace from grade before validation."""
+        from app.services.analysis_service import PortfolioSummary
+        s = PortfolioSummary(portfolio_grade=" A ", portfolio_summary="Ok.")
+        assert s.portfolio_grade == "A"
+
+    def test_invalid_grade_raises_validation_error(self) -> None:
+        """PortfolioSummary rejects an invalid grade."""
+        from app.services.analysis_service import PortfolioSummary
+        with pytest.raises(ValidationError):
+            PortfolioSummary(portfolio_grade="Z", portfolio_summary="Ok.")

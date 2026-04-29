@@ -25,11 +25,12 @@ from typing import Any
 
 import openai
 import structlog
-from pydantic import BaseModel
+import structlog.contextvars
+from pydantic import BaseModel, field_validator
 
 from app.exceptions import OpenAIUnavailableError
 from app.metrics import openai_calls_total, openai_duration_seconds
-from app.schemas.portfolio import BuffettCitation
+from app.schemas.portfolio import BuffettCitation, PortfolioGrade
 
 logger = structlog.get_logger(__name__)
 
@@ -49,8 +50,13 @@ class StockAnalysis(BaseModel):
 class PortfolioSummary(BaseModel):
     """Portfolio-level grade and narrative from GPT-4o."""
 
-    portfolio_grade: str
+    portfolio_grade: PortfolioGrade
     portfolio_summary: str
+
+    @field_validator("portfolio_grade", mode="before")
+    @classmethod
+    def strip_grade_whitespace(cls, v: str) -> str:
+        return v.strip() if isinstance(v, str) else v
 
 
 # ── System Prompts ─────────────────────────────────────────────────────────────
@@ -194,6 +200,8 @@ class AnalysisService:
         openai_calls_total.labels(call_type="per_stock").inc()
         start = time.monotonic()
 
+        trace_id = structlog.contextvars.get_contextvars().get("trace_id", "")
+
         try:
             completion = await self._client.chat.completions.create(
                 model=self._model,
@@ -202,6 +210,7 @@ class AnalysisService:
                     {"role": "user", "content": user_prompt},
                 ],
                 response_format={"type": "json_object"},
+                extra_headers={"X-Request-ID": trace_id} if trace_id else {},
             )
             elapsed = time.monotonic() - start
             openai_duration_seconds.labels(call_type="per_stock").observe(elapsed)
@@ -219,7 +228,7 @@ class AnalysisService:
             )
             return result
 
-        except (openai.APIConnectionError, openai.APITimeoutError) as exc:
+        except (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError) as exc:
             elapsed = time.monotonic() - start
             logger.error(
                 "openai.call.failed",
@@ -295,6 +304,8 @@ class AnalysisService:
         openai_calls_total.labels(call_type="summary").inc()
         start = time.monotonic()
 
+        trace_id = structlog.contextvars.get_contextvars().get("trace_id", "")
+
         try:
             completion = await self._client.chat.completions.create(
                 model=self._model,
@@ -303,6 +314,7 @@ class AnalysisService:
                     {"role": "user", "content": user_prompt},
                 ],
                 response_format={"type": "json_object"},
+                extra_headers={"X-Request-ID": trace_id} if trace_id else {},
             )
             elapsed = time.monotonic() - start
             openai_duration_seconds.labels(call_type="summary").observe(elapsed)
@@ -319,7 +331,7 @@ class AnalysisService:
             )
             return result
 
-        except (openai.APIConnectionError, openai.APITimeoutError) as exc:
+        except (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError) as exc:
             elapsed = time.monotonic() - start
             logger.error(
                 "openai.call.failed",

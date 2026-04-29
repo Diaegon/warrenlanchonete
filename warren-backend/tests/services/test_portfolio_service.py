@@ -306,6 +306,11 @@ class TestPortfolioServiceAnalyze:
         from sqlalchemy.ext.asyncio import AsyncSession
 
         mock_db = AsyncMock(spec=AsyncSession)
+        # FII validation: ticker exists in DB
+        mock_fii_result = MagicMock()
+        mock_fii_result.scalar_one_or_none.return_value = MagicMock()
+        mock_db.execute = AsyncMock(return_value=mock_fii_result)
+
         mock_rag = AsyncMock()
         mock_analysis = AsyncMock()
         mock_analysis.generate_portfolio_summary = AsyncMock(
@@ -322,12 +327,34 @@ class TestPortfolioServiceAnalyze:
         assert isinstance(fii_assets[0], FIIAssetResponse)
         assert "FII" in fii_assets[0].verdict
 
+    async def test_analyze_raises_ticker_not_found_for_unknown_fii_ticker(self) -> None:
+        """analyze() raises TickerNotFoundError when FII ticker is not in DB."""
+        from app.exceptions import TickerNotFoundError
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        # FII validation: ticker does NOT exist in DB
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        service = self._make_service()
+        request = self._make_request([make_asset("XFII11", "FII", 100.0)])
+
+        with pytest.raises(TickerNotFoundError):
+            await service.analyze(request, mock_db)
+
     async def test_analyze_tesouro_assets_get_fixed_verdict(self) -> None:
         """TESOURO assets in analyze() get 'Capital seguro' verdict."""
         from app.schemas.portfolio import PortfolioResponse, TesouroAssetResponse
         from sqlalchemy.ext.asyncio import AsyncSession
 
         mock_db = AsyncMock(spec=AsyncSession)
+        # TESOURO validation: ticker exists in DB
+        mock_tesouro_result = MagicMock()
+        mock_tesouro_result.scalar_one_or_none.return_value = MagicMock()
+        mock_db.execute = AsyncMock(return_value=mock_tesouro_result)
+
         mock_rag = AsyncMock()
         mock_analysis = AsyncMock()
         mock_analysis.generate_portfolio_summary = AsyncMock(
@@ -343,6 +370,22 @@ class TestPortfolioServiceAnalyze:
         assert len(tesouro_assets) == 1
         assert isinstance(tesouro_assets[0], TesouroAssetResponse)
         assert tesouro_assets[0].verdict == "Capital seguro"
+
+    async def test_analyze_raises_ticker_not_found_for_unknown_tesouro_ticker(self) -> None:
+        """analyze() raises TickerNotFoundError when TESOURO ticker is not in DB."""
+        from app.exceptions import TickerNotFoundError
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        service = self._make_service()
+        request = self._make_request([make_asset("XTES11", "TESOURO", 100.0)])
+
+        with pytest.raises(TickerNotFoundError):
+            await service.analyze(request, mock_db)
 
     async def test_analyze_calls_rag_retrieve_for_each_stock(self) -> None:
         """analyze() calls rag_service.retrieve() once per STOCK asset."""
@@ -369,3 +412,52 @@ class TestPortfolioServiceAnalyze:
 
         await service.analyze(request, mock_db)
         mock_rag.retrieve.assert_called_once()
+
+    async def test_raises_ticker_not_found_when_company_exists_but_has_no_financials(self) -> None:
+        """analyze() raises TickerNotFoundError when company is in DB but has no financials."""
+        from app.exceptions import TickerNotFoundError
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        company = make_company("WEGE3")
+        # Outerjoin returns (company, None) when company has no financial rows
+        mock_result = MagicMock()
+        mock_result.first.return_value = (company, None)
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        service = self._make_service()
+        request = self._make_request([make_asset("WEGE3", "STOCK", 100.0)])
+
+        with pytest.raises(TickerNotFoundError):
+            await service.analyze(request, mock_db)
+
+    async def test_analyze_passes_uppercase_ticker_to_db_query(self) -> None:
+        """analyze() passes the ticker unchanged (already uppercase per schema) to the DB query.
+
+        The schema-level pattern validator (^[A-Z0-9]+$) now guarantees uppercase
+        tickers at the API boundary. The service still uppercases defensively for
+        internal callers, so we verify the DB WHERE clause receives the correct value.
+        """
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        company = make_company("WEGE3")
+        financial = make_financial()
+        mock_result = MagicMock()
+        mock_result.first.return_value = (company, financial)
+        mock_db.execute = AsyncMock(return_value=mock_result)
+
+        mock_rag = AsyncMock()
+        mock_rag.retrieve = AsyncMock(return_value=[])
+        mock_analysis = AsyncMock()
+        mock_analysis.analyze_stock = AsyncMock(return_value=make_stock_analysis())
+        mock_analysis.generate_portfolio_summary = AsyncMock(return_value=make_portfolio_summary())
+
+        service = self._make_service(rag_service=mock_rag, analysis_service=mock_analysis)
+        request = self._make_request([make_asset("WEGE3", "STOCK", 100.0)])
+
+        response = await service.analyze(request, mock_db)
+        assert mock_db.execute.called
+        stmt = mock_db.execute.call_args[0][0]
+        compiled = stmt.compile(compile_kwargs={"literal_binds": True})
+        assert "WEGE3" in str(compiled)
