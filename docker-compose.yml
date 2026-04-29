@@ -26,6 +26,7 @@ services:
       - /app/.venv # Anonymous volume to isolate container's .venv from the host
       - ./warren-backend/rag_data:/app/rag_data # Mount populated backend RAG index
       - ./warren-ingestion/data/cache/b3/tickers.csv:/app/data/b3_tickers.csv:ro
+      - ./warren-ingestion/data/processed:/app/data/processed:ro
     env_file:
       - ./warren-backend/.env
     environment:
@@ -33,6 +34,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-warren}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-warren}
       - CHROMA_PERSIST_DIR=/app/rag_data
       - B3_TICKERS_CSV=/app/data/b3_tickers.csv
+      - FUNDAMENTALS_CSV=/app/data/processed/fundamentals.csv
     ports:
       - "8000:8000"
     # Override the production command to enable uvicorn live-reload
@@ -40,6 +42,7 @@ services:
       sh -c "uv sync && 
              uv run alembic upgrade head && 
              uv run python -m app.db.seed &&
+             uv run python -m app.db.import_fundamentals --allow-missing &&
              uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     depends_on:
       db:

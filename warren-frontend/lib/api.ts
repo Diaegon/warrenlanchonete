@@ -134,11 +134,25 @@ export interface ApiError {
   detail: string | { msg: string; loc: string[] }[];
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function alertMessage(alert: unknown): string {
+  if (typeof alert === "string") return alert;
+  if (isObject(alert) && typeof alert.message === "string") return alert.message;
+  return "";
+}
+
 function metricFromSnapshot(year: number, value: number | null | undefined): FinancialMetric[] {
   return [{ year, value: value ?? null }];
 }
 
-function normalizeAsset(asset: BackendAssetResult): AssetResult {
+function normalizeAsset(asset: BackendAssetResult | AssetResult): AssetResult {
+  if ("asset_type" in asset) {
+    return asset;
+  }
+
   if (asset.type === "STOCK") {
     const year = 2024;
     return {
@@ -172,13 +186,15 @@ function normalizeAsset(asset: BackendAssetResult): AssetResult {
   };
 }
 
-function normalizePortfolioResponse(
-  response: BackendPortfolioAnalysisResponse
+export function normalizePortfolioResponse(
+  response: BackendPortfolioAnalysisResponse | PortfolioAnalysisResponse
 ): PortfolioAnalysisResponse {
   return {
     portfolio_grade: response.portfolio_grade,
     portfolio_summary: response.portfolio_summary,
-    portfolio_alerts: (response.portfolio_alerts ?? []).map((alert) => alert.message),
+    portfolio_alerts: (response.portfolio_alerts ?? [])
+      .map(alertMessage)
+      .filter(Boolean),
     assets: response.assets.map(normalizeAsset),
   };
 }

@@ -1200,3 +1200,166 @@ sudo docker compose up -d --force-recreate backend
 ```
 
 Then retest the same frontend portfolio.
+
+## Test Attempt 13: Frontend Crash Rendering Alerts
+
+Browser error:
+
+```text
+Objects are not valid as a React child (found: object with keys {type, message})
+```
+
+## Explanation
+
+The backend response contract returns alerts as objects:
+
+```json
+{"type": "OVER_CONCENTRATED", "message": "Diversificação? Nunca ouvi falar."}
+```
+
+The frontend type expected:
+
+```ts
+portfolio_alerts: string[];
+```
+
+and rendered each alert directly:
+
+```tsx
+<AlertBanner message={alert} />
+```
+
+So React received an object instead of text.
+
+The frontend API types were also stale in a broader way. Backend assets use
+`type`, `financials`, `buffett_citations`, and `retail_adaptation_note`; the
+frontend components expect `asset_type`, history arrays, `citations`, and
+`retail_adaptation`.
+
+## Fix
+
+Added a response normalizer in `warren-frontend/lib/api.ts`:
+
+- converts `portfolio_alerts[]` from objects to `message` strings
+- converts backend `type` to frontend `asset_type`
+- maps `financials` to frontend metric arrays/fields
+- maps `buffett_citations[].passage` to `citations[].quote`
+- maps `retail_adaptation_note` to `retail_adaptation`
+
+Validation:
+
+```bash
+npm run lint
+```
+
+Result:
+
+```text
+No ESLint warnings or errors
+```
+
+Additional validation attempt:
+
+```bash
+npm run build
+```
+
+Result: blocked before compilation because the local `.next` build directory
+contains files owned by `nobody:nobody` from the containerized frontend run.
+
+Observed file:
+
+```text
+warren-frontend/.next/server/app-paths-manifest.json -> nobody:nobody
+```
+
+Observed error:
+
+```text
+EACCES: permission denied, unlink '.next/server/app-paths-manifest.json'
+```
+
+This is an artifact ownership issue, not a frontend compilation error. The
+local build can be retried after removing or changing ownership of `.next`.
+
+## Test Attempt 15: Fundamentals Data Import Path
+
+Goal: add a focused path for loading real fundamentals data into the existing
+`financials` table without changing the B3 company metadata flow.
+
+## Planned Data Contract
+
+The importer expects:
+
+```csv
+ticker,year,roe,lucro_liquido,margem_liquida,receita_liquida,divida_liquida,ebitda,divida_ebitda,market_cap,p_l,cagr_lucro
+```
+
+Rules:
+
+- `ticker` must already exist in `companies`.
+- `year` is required.
+- Empty numeric cells are imported as `NULL`.
+- Percent fields use percentage values, for example `28.5` for `28.5%`.
+- Monetary fields use raw BRL values without thousands separators.
+
+## Fix
+
+Added `app.db.import_fundamentals`, an idempotent CSV importer that upserts one
+financial row per company/year.
+
+The Docker dev backend now runs the importer after company seeding:
+
+```bash
+uv run python -m app.db.import_fundamentals --allow-missing
+```
+
+This means local development still starts when no fundamentals file exists yet,
+but as soon as `warren-ingestion/data/processed/fundamentals.csv` is present,
+the backend imports it on startup.
+
+## Test Attempt 14: Frontend Still Crashes From Saved Raw Report
+
+Browser error:
+
+```text
+Objects are not valid as a React child (found: object with keys {type, message})
+```
+
+## Explanation
+
+The first frontend fix normalized new responses returned by `analyzePortfolio`.
+However, `/report` loads the report from browser `sessionStorage`:
+
+```tsx
+const parsed = JSON.parse(raw) as PortfolioAnalysisResponse;
+setReport(parsed);
+```
+
+If the browser already had a report saved before the normalizer existed, the
+saved value still contained raw backend alert objects:
+
+```json
+{"type": "OVER_CONCENTRATED", "message": "..."}
+```
+
+The report page trusted that stored value and rendered the object directly,
+causing React to crash.
+
+## Fix
+
+The report page now runs saved report data back through the shared normalizer
+before rendering it. It also writes the cleaned result back into
+`sessionStorage`, so stale reports are repaired after the next load.
+
+Validation:
+
+```bash
+npm run lint
+```
+
+Result:
+
+```text
+No ESLint warnings or errors
+```

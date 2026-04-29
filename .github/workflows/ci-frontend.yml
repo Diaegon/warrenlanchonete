@@ -2,39 +2,47 @@ name: CI Frontend
 
 on:
   push:
-    branches: [ "main" ]
+    branches-ignore: [main]
     paths:
       - 'warren-frontend/**'
       - '.github/workflows/ci-frontend.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
     paths:
       - 'warren-frontend/**'
       - '.github/workflows/ci-frontend.yml'
 
 jobs:
   build:
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./warren-frontend
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Use Node.js 20
-      uses: actions/setup-node@v4
-      with:
-        node-version: 20
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: warren-frontend/package-lock.json
 
-    - name: Install dependencies
-      run: npm install
+      # npm ci is faster and deterministic: it uses package-lock.json exactly,
+      # never writes to it, and fails if the lockfile is out of sync.
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Lint
-      run: npm run lint --if-present
+      - name: Lint
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: npm run lint
 
-    - name: Test
-      run: npm test --if-present
+      - name: Test
+        run: npm test --if-present
 
-    - name: Build
-      run: npm run build
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: npm run build

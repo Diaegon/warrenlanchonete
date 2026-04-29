@@ -14,6 +14,7 @@ import type {
   FIIAssetResult,
   TesourAssetResult,
 } from "@/lib/api";
+import { normalizePortfolioResponse } from "@/lib/api";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -42,7 +43,8 @@ export default function ReportPage() {
       return;
     }
     try {
-      const parsed = JSON.parse(raw) as PortfolioAnalysisResponse;
+      const parsed = normalizePortfolioResponse(JSON.parse(raw));
+      sessionStorage.setItem("warren_report", JSON.stringify(parsed));
       setReport(parsed);
     } catch {
       router.replace("/");
@@ -58,7 +60,7 @@ export default function ReportPage() {
       const rawReport = sessionStorage.getItem("warren_report");
       if (!rawReport) throw new Error("Dados do relatório não encontrados.");
 
-      const parsed = JSON.parse(rawReport) as PortfolioAnalysisResponse;
+      const parsed = normalizePortfolioResponse(JSON.parse(rawReport));
       const assets = parsed.assets.map((a) => ({
         ticker: a.ticker,
         type: a.asset_type,
