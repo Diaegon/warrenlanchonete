@@ -29,7 +29,7 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS}
       - LOG_LEVEL=INFO
     volumes:
-      - ./rag_data:/app/rag_data   # ChromaDB persistence + Buffett letter PDFs
+      - ./warren-backend/rag_data:/app/rag_data
     networks:
       - internal
       - web
