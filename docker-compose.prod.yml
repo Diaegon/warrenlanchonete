@@ -30,6 +30,8 @@ services:
       - LOG_LEVEL=INFO
     volumes:
       - ./warren-backend/rag_data:/app/rag_data
+      - ./warren-ingestion/data/cache/b3/tickers.csv:/app/data/b3_tickers.csv:ro
+      - ./warren-ingestion/data/processed/fundamentals.csv:/app/data/processed/fundamentals.csv:ro
     networks:
       - internal
       - web
