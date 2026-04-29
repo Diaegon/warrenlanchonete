@@ -37,6 +37,18 @@ services:
       db:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: ./warren-frontend
+      args:
+        NEXT_PUBLIC_API_URL: https://warren.diegocanafs.com.br
+    container_name: warren_frontend
+    restart: always
+    networks:
+      - web
+    depends_on:
+      - backend
+
   nginx:
     image: nginx:1.27-alpine
     container_name: warren_nginx
