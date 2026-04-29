@@ -180,6 +180,26 @@ class TestAnalyzeStock:
                     citations=_make_citations(),
                 )
 
+    async def test_raises_openai_unavailable_on_authentication_error(self):
+        """analyze_stock raises OpenAIUnavailableError on invalid API key."""
+        mock_openai_client = MagicMock()
+        mock_openai_client.chat.completions.create = AsyncMock(
+            side_effect=openai.AuthenticationError(
+                message="Invalid API key",
+                response=MagicMock(status_code=401, headers={}),
+                body=None,
+            )
+        )
+
+        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+            svc = self._make_service()
+            with pytest.raises(OpenAIUnavailableError):
+                await svc.analyze_stock(
+                    company=_make_mock_company(),
+                    financials=_make_mock_financial(),
+                    citations=_make_citations(),
+                )
+
     async def test_raises_openai_unavailable_on_invalid_json(self):
         """analyze_stock raises OpenAIUnavailableError when response is not valid JSON."""
         from app.services.analysis_service import AnalysisService

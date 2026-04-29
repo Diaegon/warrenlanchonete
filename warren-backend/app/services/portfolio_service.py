@@ -161,8 +161,9 @@ class PortfolioService:
         fiis = [a for a in request.assets if a.type == AssetType.FII]
         tesouros = [a for a in request.assets if a.type == AssetType.TESOURO]
 
-        # Query DB for each stock — raises TickerNotFoundError if not found
-        stock_pairs: list[tuple[AssetInput, Company, Financial]] = []
+        # Query DB for each stock. Missing companies are 404; missing financials
+        # become explicit degraded asset responses below.
+        stock_pairs: list[tuple[AssetInput, Company, Financial | None]] = []
         for asset in stocks:
             company, financial = await self._get_company_and_financials(asset.ticker, db)
             stock_pairs.append((asset, company, financial))
@@ -184,6 +185,13 @@ class PortfolioService:
         stock_responses: list[StockAssetResponse] = []
         for idx, result in enumerate(stock_results):
             asset, company, financial = stock_pairs[idx]
+            if financial is None:
+                logger.warning(
+                    "portfolio.stock.financials_missing",
+                    ticker=asset.ticker,
+                )
+                stock_responses.append(_make_missing_financials_stock_response(asset, company))
+                continue
             if isinstance(result, BaseException):
                 logger.warning(
                     "portfolio.stock.analysis.failed",
@@ -228,7 +236,7 @@ class PortfolioService:
 
     async def _get_company_and_financials(
         self, ticker: str, db: AsyncSession
-    ) -> tuple[Company, Financial]:
+    ) -> tuple[Company, Financial | None]:
         """Query company and its most recent financial record.
 
         Uses an outer join so that a company with no financials returns
@@ -240,11 +248,10 @@ class PortfolioService:
             db: Async database session.
 
         Returns:
-            Tuple of (Company, Financial) for the most recent year.
+            Tuple of (Company, Financial | None) for the most recent year.
 
         Raises:
-            TickerNotFoundError: If the ticker is not in the companies table,
-                or if the company has no financial data yet.
+            TickerNotFoundError: If the ticker is not in the companies table.
         """
         ticker = ticker.upper()
         stmt = (
@@ -259,8 +266,6 @@ class PortfolioService:
         if row is None:
             raise TickerNotFoundError(ticker)
         company, financial = row
-        if financial is None:
-            raise TickerNotFoundError(ticker)
         return company, financial
 
     async def _validate_ticker_in_db(
@@ -288,7 +293,7 @@ class PortfolioService:
         self,
         asset: AssetInput,
         company: Company,
-        financial: Financial,
+        financial: Financial | None,
     ) -> StockAssetResponse:
         """Analyze a single stock using RAG retrieval and AI analysis.
 
@@ -301,6 +306,9 @@ class PortfolioService:
             StockAssetResponse with AI-generated analysis.
         """
         logger.info("portfolio.stock.analysis.started", ticker=asset.ticker)
+
+        if financial is None:
+            return _make_missing_financials_stock_response(asset, company)
 
         # RAG retrieval
         roe_val = float(financial.roe) if financial.roe is not None else 0.0
@@ -367,6 +375,36 @@ def _make_degraded_stock_response(
         buffett_verdict="Análise indisponível no momento. Tente novamente.",
         buffett_citations=[],
         retail_adaptation_note="",
+    )
+
+
+def _make_missing_financials_stock_response(
+    asset: AssetInput, company: Company
+) -> StockAssetResponse:
+    """Create a StockAssetResponse when company metadata exists but fundamentals do not."""
+    return StockAssetResponse(
+        ticker=asset.ticker,
+        company_name=company.name,
+        sector=company.sector,
+        type="STOCK",
+        percentage=asset.percentage,
+        score=0.0,
+        verdict="Dados financeiros indisponíveis",
+        financials=FinancialSnapshot(
+            roe=None,
+            margem_liquida=None,
+            cagr_lucro=None,
+            divida_ebitda=None,
+        ),
+        buffett_verdict=(
+            "Ainda não temos fundamentos suficientes para avaliar este ativo "
+            "com os critérios da Warren Lanchonete."
+        ),
+        buffett_citations=[],
+        retail_adaptation_note=(
+            "O ticker existe na base da B3, mas os dados financeiros anuais "
+            "ainda não foram carregados."
+        ),
     )
 
 

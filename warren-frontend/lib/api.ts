@@ -23,6 +23,64 @@ export interface Citation {
   relevance: string;
 }
 
+interface BackendCitation {
+  passage: string;
+  year: number;
+  relevance: string;
+}
+
+interface BackendFinancialSnapshot {
+  roe: number | null;
+  margem_liquida: number | null;
+  cagr_lucro: number | null;
+  divida_ebitda: number | null;
+}
+
+interface BackendPortfolioAlert {
+  type: string;
+  message: string;
+}
+
+interface BackendStockAssetResult {
+  type: "STOCK";
+  ticker: string;
+  company_name: string;
+  sector: string | null;
+  percentage: number;
+  score: number;
+  verdict: string;
+  financials: BackendFinancialSnapshot;
+  buffett_verdict: string;
+  buffett_citations: BackendCitation[];
+  retail_adaptation_note: string;
+}
+
+interface BackendFIIAssetResult {
+  type: "FII";
+  ticker: string;
+  percentage: number;
+  verdict: string;
+}
+
+interface BackendTesouroAssetResult {
+  type: "TESOURO";
+  ticker: string;
+  percentage: number;
+  verdict: string;
+}
+
+type BackendAssetResult =
+  | BackendStockAssetResult
+  | BackendFIIAssetResult
+  | BackendTesouroAssetResult;
+
+interface BackendPortfolioAnalysisResponse {
+  portfolio_grade: string;
+  portfolio_summary: string;
+  portfolio_alerts: BackendPortfolioAlert[];
+  assets: BackendAssetResult[];
+}
+
 export interface StockAssetResult {
   asset_type: "STOCK";
   ticker: string;
@@ -76,6 +134,55 @@ export interface ApiError {
   detail: string | { msg: string; loc: string[] }[];
 }
 
+function metricFromSnapshot(year: number, value: number | null | undefined): FinancialMetric[] {
+  return [{ year, value: value ?? null }];
+}
+
+function normalizeAsset(asset: BackendAssetResult): AssetResult {
+  if (asset.type === "STOCK") {
+    const year = 2024;
+    return {
+      asset_type: "STOCK",
+      ticker: asset.ticker,
+      company_name: asset.company_name,
+      sector: asset.sector ?? "",
+      percentage: asset.percentage,
+      score: asset.score,
+      verdict: asset.verdict,
+      verdict_detail: "",
+      roe_history: metricFromSnapshot(year, asset.financials?.roe),
+      net_margin_history: metricFromSnapshot(year, asset.financials?.margem_liquida),
+      cagr: asset.financials?.cagr_lucro ?? null,
+      debt_ebitda: asset.financials?.divida_ebitda ?? null,
+      buffett_verdict: asset.buffett_verdict,
+      retail_adaptation: asset.retail_adaptation_note,
+      citations: (asset.buffett_citations ?? []).map((citation) => ({
+        quote: citation.passage,
+        year: citation.year,
+        relevance: citation.relevance,
+      })),
+    };
+  }
+
+  return {
+    asset_type: asset.type,
+    ticker: asset.ticker,
+    percentage: asset.percentage,
+    verdict: asset.verdict,
+  };
+}
+
+function normalizePortfolioResponse(
+  response: BackendPortfolioAnalysisResponse
+): PortfolioAnalysisResponse {
+  return {
+    portfolio_grade: response.portfolio_grade,
+    portfolio_summary: response.portfolio_summary,
+    portfolio_alerts: (response.portfolio_alerts ?? []).map((alert) => alert.message),
+    assets: response.assets.map(normalizeAsset),
+  };
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = (await res.json().catch(() => ({ detail: res.statusText }))) as ApiError;
@@ -96,7 +203,8 @@ export async function analyzePortfolio(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  return handleResponse<PortfolioAnalysisResponse>(res);
+  const data = await handleResponse<BackendPortfolioAnalysisResponse>(res);
+  return normalizePortfolioResponse(data);
 }
 
 export async function getCompanies(): Promise<Company[]> {

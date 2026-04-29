@@ -413,23 +413,42 @@ class TestPortfolioServiceAnalyze:
         await service.analyze(request, mock_db)
         mock_rag.retrieve.assert_called_once()
 
-    async def test_raises_ticker_not_found_when_company_exists_but_has_no_financials(self) -> None:
-        """analyze() raises TickerNotFoundError when company is in DB but has no financials."""
-        from app.exceptions import TickerNotFoundError
+    async def test_analyze_degrades_when_company_exists_but_has_no_financials(self) -> None:
+        """analyze() returns an explicit no-financial-data response for known stocks."""
+        from app.schemas.portfolio import StockAssetResponse
         from sqlalchemy.ext.asyncio import AsyncSession
 
         mock_db = AsyncMock(spec=AsyncSession)
-        company = make_company("WEGE3")
+        company = make_company("ALPA3", name="Alpargatas S.A.", sector="Consumo")
         # Outerjoin returns (company, None) when company has no financial rows
         mock_result = MagicMock()
         mock_result.first.return_value = (company, None)
         mock_db.execute = AsyncMock(return_value=mock_result)
 
-        service = self._make_service()
-        request = self._make_request([make_asset("WEGE3", "STOCK", 100.0)])
+        mock_rag = AsyncMock()
+        mock_rag.retrieve = AsyncMock()
+        mock_analysis = AsyncMock()
+        mock_analysis.analyze_stock = AsyncMock()
+        mock_analysis.generate_portfolio_summary = AsyncMock(return_value=make_portfolio_summary())
 
-        with pytest.raises(TickerNotFoundError):
-            await service.analyze(request, mock_db)
+        service = self._make_service(rag_service=mock_rag, analysis_service=mock_analysis)
+        request = self._make_request([make_asset("ALPA3", "STOCK", 100.0)])
+
+        response = await service.analyze(request, mock_db)
+
+        stock = response.assets[0]
+        assert isinstance(stock, StockAssetResponse)
+        assert stock.ticker == "ALPA3"
+        assert stock.company_name == "Alpargatas S.A."
+        assert stock.score == 0.0
+        assert stock.verdict == "Dados financeiros indisponíveis"
+        assert stock.financials.roe is None
+        assert stock.financials.margem_liquida is None
+        assert stock.financials.cagr_lucro is None
+        assert stock.financials.divida_ebitda is None
+        assert stock.buffett_citations == []
+        mock_rag.retrieve.assert_not_called()
+        mock_analysis.analyze_stock.assert_not_called()
 
     async def test_analyze_passes_uppercase_ticker_to_db_query(self) -> None:
         """analyze() passes the ticker unchanged (already uppercase per schema) to the DB query.

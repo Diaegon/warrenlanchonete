@@ -43,8 +43,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Non-root user — without --home Debian sets home to /nonexistent which breaks
 # fontconfig's user-level cache write attempt at runtime.
-RUN addgroup --system --gid 1001 appgroup && \
-    adduser --system --uid 1001 --ingroup appgroup --home /home/appuser appuser && \
+RUN addgroup --system --gid 1000 appgroup && \
+    adduser --system --uid 1000 --ingroup appgroup --home /home/appuser appuser && \
     chown -R appuser:appgroup /app /home/appuser
 
 ENV HOME=/home/appuser

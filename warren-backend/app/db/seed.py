@@ -6,9 +6,11 @@ Run after Alembic migrations:
 from __future__ import annotations
 
 import asyncio
+import csv
 import os
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -22,9 +24,40 @@ from app.models.financial import Financial
 logger = structlog.get_logger(__name__)
 
 DEV_DATABASE_URL = "postgresql://warren:password@localhost:5432/warren"
+B3_TICKERS_CSV = Path("../warren-ingestion/data/cache/b3/tickers.csv")
 
 
-STARTER_COMPANIES: tuple[dict[str, Any], ...] = (
+def _load_b3_company_rows(path: Path | None = None) -> tuple[dict[str, Any], ...]:
+    """Load backend company rows from the B3 ingestion cache if available."""
+    csv_path = path or Path(os.environ.get("B3_TICKERS_CSV", B3_TICKERS_CSV))
+    if not csv_path.exists():
+        logger.warning("database.seed.b3_cache_missing", path=str(csv_path))
+        return ()
+
+    rows: list[dict[str, Any]] = []
+    seen_tickers: set[str] = set()
+    with csv_path.open("r", encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            ticker = (row.get("ticker") or "").strip().upper()
+            name = (row.get("name") or "").strip()
+            if not ticker or not name or ticker in seen_tickers:
+                continue
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "name": name,
+                    "sector": (row.get("sector") or "").strip() or None,
+                    "segment": (row.get("segment") or "").strip() or None,
+                    "asset_type": (row.get("asset_type") or "STOCK").strip().upper(),
+                }
+            )
+            seen_tickers.add(ticker)
+
+    return tuple(sorted(rows, key=lambda item: item["ticker"]))
+
+
+FALLBACK_COMPANIES: tuple[dict[str, Any], ...] = (
     {
         "ticker": "WEGE3",
         "name": "WEG S.A.",
@@ -54,6 +87,22 @@ STARTER_COMPANIES: tuple[dict[str, Any], ...] = (
         "asset_type": "TESOURO",
     },
 )
+
+
+def _starter_companies() -> tuple[dict[str, Any], ...]:
+    """Return B3 cache rows plus non-B3 starter assets."""
+    b3_rows = _load_b3_company_rows()
+    rows_by_ticker = {row["ticker"]: row for row in FALLBACK_COMPANIES}
+    for row in b3_rows:
+        rows_by_ticker[row["ticker"]] = row
+    rows_by_ticker["TESOURO"] = {
+        "ticker": "TESOURO",
+        "name": "Tesouro Direto",
+        "sector": "Renda Fixa",
+        "segment": "Títulos Públicos",
+        "asset_type": "TESOURO",
+    }
+    return tuple(rows_by_ticker[ticker] for ticker in sorted(rows_by_ticker))
 
 
 STARTER_FINANCIALS: tuple[dict[str, Any], ...] = (
@@ -138,7 +187,7 @@ async def seed_database(session: AsyncSession) -> SeedResult:
     financials_updated = 0
     companies_by_ticker: dict[str, Company] = {}
 
-    for row in STARTER_COMPANIES:
+    for row in _starter_companies():
         ticker = row["ticker"]
         company = await session.scalar(select(Company).where(Company.ticker == ticker))
         if company is None:
@@ -155,7 +204,10 @@ async def seed_database(session: AsyncSession) -> SeedResult:
 
     for row in STARTER_FINANCIALS:
         ticker = row["ticker"]
-        company = companies_by_ticker[ticker]
+        company = companies_by_ticker.get(ticker)
+        if company is None:
+            logger.warning("database.seed.financial_skipped", ticker=ticker, reason="company_missing")
+            continue
         year = row["year"]
         values = {key: value for key, value in row.items() if key != "ticker"}
         financial = await session.scalar(

@@ -228,7 +228,12 @@ class AnalysisService:
             )
             return result
 
-        except (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError) as exc:
+        except (
+            openai.APIConnectionError,
+            openai.APITimeoutError,
+            openai.AuthenticationError,
+            openai.RateLimitError,
+        ) as exc:
             elapsed = time.monotonic() - start
             logger.error(
                 "openai.call.failed",
@@ -331,7 +336,12 @@ class AnalysisService:
             )
             return result
 
-        except (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError) as exc:
+        except (
+            openai.APIConnectionError,
+            openai.APITimeoutError,
+            openai.AuthenticationError,
+            openai.RateLimitError,
+        ) as exc:
             elapsed = time.monotonic() - start
             logger.error(
                 "openai.call.failed",

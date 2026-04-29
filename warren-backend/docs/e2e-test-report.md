@@ -944,3 +944,259 @@ Waiting for permission to remove the invalid apt package from the Dockerfile.
 
 Applied with permission: `libgobject-2.0-0` was removed from the apt package
 list; `libglib2.0-0` remains.
+
+## Test Attempt 11: Docker Backend Running, Frontend Calls
+
+Container logs now show the backend starts and CORS preflight succeeds:
+
+```text
+GET /health HTTP/1.1" 200 OK
+OPTIONS /api/portfolio/analyze HTTP/1.1" 200 OK
+GET /api/companies HTTP/1.1" 200 OK
+```
+
+So the original browser CORS/network failure is fixed.
+
+New failures:
+
+```text
+warren_backend.rag_init_failed error='attempt to write a readonly database'
+```
+
+and:
+
+```text
+POST /api/portfolio/analyze HTTP/1.1" 404 Not Found
+tickers=['WEGE3', 'PETR4', 'SAPR3', 'TUPY3']
+tickers=['WEGE3', 'PETR4', 'TUPY3', 'VALE3']
+```
+
+and:
+
+```text
+openai.AuthenticationError: Incorrect API key provided: sk-dummy-key
+```
+
+## Explanation
+
+1. Docker is not using the backend `.env` API key.
+
+   `docker-compose.yml` currently has:
+
+   ```yaml
+   OPENAI_API_KEY=${OPENAI_API_KEY:-sk-dummy-key}
+   ```
+
+   Compose reads interpolation values from the repo-root shell/root `.env`, not
+   `warren-backend/.env`. Because the root environment does not provide
+   `OPENAI_API_KEY`, the container receives `sk-dummy-key`.
+
+2. ChromaDB cannot write to the mounted RAG SQLite database.
+
+   `warren-backend/rag_data` is owned by host UID/GID `1000:1000`. The Dockerfile
+   currently creates `appuser` as UID/GID `1001:1001`. The container can read the
+   files but ChromaDB needs SQLite write access for normal startup bookkeeping,
+   so RAG initialization fails.
+
+3. The frontend is submitting tickers that are not in the current seed DB.
+
+   Current seed covers:
+
+   ```text
+   WEGE3, PETR4, MXRF11, TESOURO
+   ```
+
+   Frontend tests/logs include:
+
+   ```text
+   SAPR3, TUPY3, VALE3
+   ```
+
+## Proposed Fixes
+
+1. Make Docker load `warren-backend/.env`, but keep container-specific overrides
+   for DB and Chroma paths:
+
+   ```yaml
+   env_file:
+     - ./warren-backend/.env
+   environment:
+     - ENVIRONMENT=development
+     - DATABASE_URL=postgresql://${POSTGRES_USER:-warren}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-warren}
+     - CHROMA_PERSIST_DIR=/app/rag_data
+   ```
+
+   Remove the dummy `OPENAI_API_KEY` fallback.
+
+2. Change the Docker app user UID/GID from `1001` to `1000`, matching this host,
+   so the container can write the bind-mounted `rag_data` SQLite files.
+
+3. Expand starter seed data with the UI/test tickers:
+
+   ```text
+   VALE3, SAPR3, TUPY3
+   ```
+
+   Also add a few common base tickers so the frontend suggestion list is less
+   sparse:
+
+   ```text
+   ITUB4, BBAS3, ABEV3, B3SA3, RENT3, EGIE3, TAEE11
+   ```
+
+4. Add/update seed tests to assert the broader base dataset exists and remains
+   idempotent.
+
+## Status
+
+Waiting for permission to apply Docker env/user fixes and expand the base seed
+dataset.
+
+Applied with permission:
+
+1. `docker-compose.yml`
+   - loads `./warren-backend/.env` via `env_file`
+   - removes the `sk-dummy-key` fallback
+   - mounts `./warren-ingestion/data/cache/b3/tickers.csv` into the backend
+   - sets `B3_TICKERS_CSV=/app/data/b3_tickers.csv`
+   - runs `uv run python -m app.db.seed` after migrations during backend startup
+
+2. `warren-backend/Dockerfile`
+   - changes app user/group to UID/GID `1000:1000` so mounted `rag_data` is writable
+
+3. `app/db/seed.py`
+   - loads all B3 ticker company rows from `warren-ingestion/data/cache/b3/tickers.csv`
+   - preserves fallback non-B3 assets like `MXRF11` and `TESOURO`
+   - keeps financial seed rows for available starter assets
+
+4. `app/services/analysis_service.py`
+   - maps `openai.AuthenticationError` to the existing `OpenAIUnavailableError`
+     instead of leaking a raw 500 traceback
+
+Validation:
+
+```text
+local DB company count -> 527
+contains -> MXRF11, PETR4, SAPR3, TESOURO, TUPY3, VALE3, WEGE3
+uv run pytest -m "not integration" -q -> 143 passed, 3 deselected, 1 warning
+```
+
+Docker rebuild required:
+
+```bash
+sudo docker compose build --no-cache backend
+sudo docker compose up -d --force-recreate backend
+curl -i http://localhost:8000/ready
+```
+
+## Test Attempt 12: Full B3 Company Metadata But Missing Financials
+
+Frontend request logs:
+
+```text
+tickers=['WEGE3', 'SAPR3', 'ALPA3', 'ITUB3', 'BBDC3']
+POST /api/portfolio/analyze HTTP/1.1" 404 Not Found
+```
+
+DB verification:
+
+```text
+WEGE3 company=True financial=True
+SAPR3 company=True financial=False
+ALPA3 company=True financial=False
+ITUB3 company=True financial=False
+BBDC3 company=True financial=False
+```
+
+## Explanation
+
+The B3 ingestion cache provides ticker/company metadata:
+
+```text
+ticker, name, sector, segment, asset_type
+```
+
+It does not provide the annual financial fundamentals required by the current
+stock analysis path:
+
+```text
+roe, lucro_liquido, margem_liquida, receita_liquida, divida_liquida,
+ebitda, divida_ebitda, market_cap, p_l, cagr_lucro
+```
+
+So the DB now has broad autocomplete coverage, but only the starter financial
+rows have analysis-ready fundamentals. The current `PortfolioService` raises
+`TickerNotFoundError` when financials are missing, which returns a misleading
+404 even though the ticker exists.
+
+## Proposed Fix
+
+Do not create fake financial rows for every B3 ticker. That would make the
+analysis look more complete than the data really is.
+
+Instead:
+
+1. Keep all B3 company rows for frontend autocomplete.
+2. Change portfolio analysis so stocks with no financial data return a degraded
+   stock response:
+
+   ```text
+   score=0
+   verdict="Dados financeiros indisponíveis"
+   financials={all metrics null}
+   buffett_verdict="Ainda não temos fundamentos suficientes..."
+   ```
+
+3. Continue analyzing the rest of the portfolio instead of failing the whole
+   request with 404.
+4. Reserve 404 for tickers truly absent from `companies`.
+
+This lets the frontend submit any B3 ticker while making the data limitation
+explicit in the response.
+
+## Status
+
+Waiting for permission to implement graceful missing-financials handling.
+
+Applied with permission.
+
+Implementation:
+
+- Existing companies with no `financials` row now return a degraded
+  `StockAssetResponse` instead of raising `TickerNotFoundError`.
+- The response uses:
+
+```text
+score=0.0
+verdict="Dados financeiros indisponíveis"
+financials={all metrics null}
+buffett_citations=[]
+```
+
+- RAG and per-stock OpenAI analysis are skipped for that asset.
+- True 404 remains reserved for tickers absent from the `companies` table.
+
+Validation:
+
+```text
+tests/services/test_portfolio_service.py -> 21 passed
+uv run pytest -m "not integration" -q -> 143 passed, 3 deselected, 1 warning
+```
+
+Live Docker check immediately after patch still returned:
+
+```http
+HTTP/1.1 404 Not Found
+{"detail":"Ticker SAPR3 not found in database"}
+```
+
+That response is the old container behavior. The running Docker backend needs to
+be restarted/recreated so Uvicorn loads the patched bind-mounted code.
+
+Required command:
+
+```bash
+sudo docker compose up -d --force-recreate backend
+```
+
+Then retest the same frontend portfolio.
