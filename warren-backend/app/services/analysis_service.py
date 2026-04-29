@@ -82,11 +82,13 @@ portfolio of R$ 10k–500k
 this investor's reality
 
 SCORING RUBRIC (score 0.0 to 10.0):
-- ROE consistently > 15%: +2 points
-- Net margin > 10%: +2 points
+- Latest annual ROE > 15%: +2 points
+- Latest annual net margin > 10%: +2 points
 - Debt/EBITDA < 2.0: +2 points
-- Profit CAGR > 10% (5 years): +2 points
+- 5-year profit CAGR > 10%: +2 points
 - Business model durability (sector assessment): +2 points
+- If a metric is unavailable, give 0 points for that metric and explicitly say the data is unavailable.
+- Do not infer unavailable metrics from sector, citations, or tone.
 
 VERDICT MAPPING:
 - score >= 7.0: "APROVADO"
@@ -181,18 +183,24 @@ class AnalysisService:
         else:
             formatted_citations = "None retrieved. Assess the company based on financials alone."
 
+        def metric(value: Any, suffix: str = "") -> str:
+            if value is None:
+                return "unavailable"
+            return f"{value}{suffix}"
+
         user_prompt = (
             f"Analyze the following Brazilian company from Warren Buffett's perspective:\n\n"
             f"COMPANY: {company.name} ({company.ticker})\n"
             f"SECTOR: {company.sector}\n"
-            f"LATEST FINANCIALS ({financials.year}):\n"
-            f"- ROE: {financials.roe}%\n"
-            f"- Net margin: {financials.margem_liquida}%\n"
-            f"- 5-year profit CAGR: {financials.cagr_lucro}%\n"
-            f"- Debt/EBITDA: {financials.divida_ebitda}x\n\n"
+            f"LATEST ANNUAL FINANCIALS (fiscal year {financials.year}, CVM DFP):\n"
+            f"- ROE: {metric(financials.roe, '%')}\n"
+            f"- Net margin: {metric(financials.margem_liquida, '%')}\n"
+            f"- 5-year profit CAGR: {metric(financials.cagr_lucro, '%')}\n"
+            f"- Debt/EBITDA: {metric(financials.divida_ebitda, 'x')}\n\n"
             f"BUFFETT PASSAGES (retrieved from his shareholder letters — use these as citations):\n"
             f"{formatted_citations}\n\n"
-            f"Apply the scoring rubric. Explain the score. Cite the most relevant passage.\n"
+            f"Apply the scoring rubric exactly. Do not award points for unavailable metrics. "
+            f"Explain the score. Cite the most relevant passage.\n"
             f"If no passage is highly relevant, say so in the relevance field."
         )
 

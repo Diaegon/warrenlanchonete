@@ -84,12 +84,14 @@ class FinancialSnapshot(BaseModel):
     All fields are optional — some companies may not have all metrics available.
 
     Attributes:
+        year: Fiscal year used for the snapshot.
         roe: Return on equity as percentage.
         margem_liquida: Net margin as percentage.
         cagr_lucro: 5-year profit CAGR as percentage.
         divida_ebitda: Net debt / EBITDA ratio.
     """
 
+    year: int | None = None
     roe: float | None
     margem_liquida: float | None
     cagr_lucro: float | None

@@ -1318,6 +1318,168 @@ This means local development still starts when no fundamentals file exists yet,
 but as soon as `warren-ingestion/data/processed/fundamentals.csv` is present,
 the backend imports it on startup.
 
+## Test Attempt 16: Gather Real CVM Fundamentals
+
+Goal: populate `fundamentals.csv` with real annual accounting data for B3
+stocks.
+
+Source selected:
+
+```text
+CVM DFP annual statement ZIPs
+https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS/
+```
+
+DFP years gathered:
+
+```text
+2019, 2020, 2021, 2022, 2023, 2024
+```
+
+Commands:
+
+```bash
+cd warren-ingestion
+uv run warren-ingestion fetch-cvm-dfp --years 2019 2020 2021 2022 2023 2024 --max-age-hours 168
+uv run warren-ingestion build-fundamentals \
+  --b3-file data/cache/b3/tickers.csv \
+  --dfp-zips data/cache/cvm/dfp/dfp_cia_aberta_2019.zip \
+             data/cache/cvm/dfp/dfp_cia_aberta_2020.zip \
+             data/cache/cvm/dfp/dfp_cia_aberta_2021.zip \
+             data/cache/cvm/dfp/dfp_cia_aberta_2022.zip \
+             data/cache/cvm/dfp/dfp_cia_aberta_2023.zip \
+             data/cache/cvm/dfp/dfp_cia_aberta_2024.zip \
+  --output data/processed/fundamentals.csv
+```
+
+Result:
+
+```text
+years_processed=6
+rows_written=3047
+companies_matched=523
+```
+
+Backend import:
+
+```bash
+cd warren-backend
+uv run python -m app.db.import_fundamentals --path ../warren-ingestion/data/processed/fundamentals.csv
+```
+
+Result:
+
+```text
+rows_read=3047
+financials_created=3045
+financials_updated=2
+rows_skipped=0
+```
+
+Database verification:
+
+```text
+financial_rows=3048
+WEGE3 2024: roe=27.3241, lucro_liquido=6318763000.00, margem_liquida=16.6340, cagr_lucro=31.0866
+PETR4 2024: roe=10.0701, lucro_liquido=37009000000.00, margem_liquida=7.5401, cagr_lucro=-2.0130
+VALE3 2024: roe=14.2387, lucro_liquido=30431000000.00, margem_liquida=14.7720
+SAPR3 2024: roe=14.2708, lucro_liquido=1545347000.00, margem_liquida=22.5657, cagr_lucro=7.4281
+BBDC3 2024: roe=10.3835, lucro_liquido=17542153000.00, margem_liquida=8.2273, cagr_lucro=-3.6927
+```
+
+Fields currently gathered from CVM:
+
+```text
+lucro_liquido
+receita_liquida
+roe
+margem_liquida
+divida_liquida
+cagr_lucro
+```
+
+Fields intentionally left blank for now:
+
+```text
+ebitda
+divida_ebitda
+market_cap
+p_l
+```
+
+Reason: DFP statement rows do not provide market price data, and EBITDA needs a
+specific derivation/source before we should treat Debt/EBITDA as reliable.
+
+Validation:
+
+```text
+warren-ingestion: uv run pytest -q -> 17 passed
+warren-backend: uv run pytest tests/db/test_import_fundamentals.py tests/db/test_seed.py -q -> 10 passed
+warren-backend: uv run pytest -m 'not integration' -q -> 150 passed, 3 deselected, 1 warning
+```
+
+## Test Attempt 17: Report Metric Scale and Analysis Calibration
+
+User observation:
+
+```text
+ROE, margem líquida and CAGR appear with very large numbers in the report.
+It is also unclear if the displayed values are annual or monthly, and some AI
+analysis appears to rely on a metric without clear calibration.
+```
+
+## Explanation
+
+The CVM-derived values are already stored as percentages:
+
+```text
+WEGE3 2024 ROE = 27.3241 means 27.3241%
+```
+
+The frontend card formatter was multiplying these values by 100 again:
+
+```ts
+return `${(value * 100).toFixed(1)}%`;
+```
+
+So a true `27.3241%` appeared as `2732.4%`.
+
+The report labels also did not state the period. These metrics are annual
+figures from the latest CVM DFP fiscal year, currently 2024.
+
+The analysis prompt had a second issue: unavailable metrics were sent as
+`None`, for example:
+
+```text
+Debt/EBITDA: Nonex
+```
+
+The scoring rubric did not explicitly say that unavailable metrics must receive
+0 points, so the model could infer too much.
+
+## Fix
+
+- Backend `FinancialSnapshot` now includes `year`.
+- Portfolio responses now send the financial statement year used in the
+  analysis.
+- Frontend no longer multiplies percentage values by 100.
+- Frontend labels now show the period:
+
+```text
+ROE anual 2024
+Margem líq. anual 2024
+CAGR lucro 5a
+```
+
+- The stock analysis prompt now says:
+
+```text
+LATEST ANNUAL FINANCIALS (fiscal year 2024, CVM DFP)
+```
+
+- Missing metrics are rendered as `unavailable`, and the model is instructed not
+  to award points for unavailable metrics.
+
 ## Test Attempt 14: Frontend Still Crashes From Saved Raw Report
 
 Browser error:

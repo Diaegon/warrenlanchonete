@@ -15,7 +15,7 @@ function verdictBadgeClass(verdict: string): string {
 
 function formatMetricValue(value: number | null): string {
   if (value === null || value === undefined) return "—";
-  return `${(value * 100).toFixed(1)}%`;
+  return `${value.toFixed(1)}%`;
 }
 
 function formatDecimal(value: number | null): string {
@@ -32,6 +32,7 @@ function latestMetric(history: FinancialMetric[]): number | null {
 export default function StockCard({ asset }: StockCardProps) {
   const latestROE = latestMetric(asset.roe_history);
   const latestMargin = latestMetric(asset.net_margin_history);
+  const latestYear = asset.roe_history?.[0]?.year ?? asset.net_margin_history?.[0]?.year;
 
   return (
     <div className="bg-nubank-card border border-nubank-border rounded-xl p-5 flex flex-col gap-4">
@@ -58,19 +59,23 @@ export default function StockCard({ asset }: StockCardProps) {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-nubank-dark rounded-lg px-3 py-2">
-          <span className="text-nubank-muted text-xs block">ROE</span>
+          <span className="text-nubank-muted text-xs block">
+            ROE anual{latestYear ? ` ${latestYear}` : ""}
+          </span>
           <span className="text-white font-semibold">
             {formatMetricValue(latestROE)}
           </span>
         </div>
         <div className="bg-nubank-dark rounded-lg px-3 py-2">
-          <span className="text-nubank-muted text-xs block">Margem Líq.</span>
+          <span className="text-nubank-muted text-xs block">
+            Margem líq. anual{latestYear ? ` ${latestYear}` : ""}
+          </span>
           <span className="text-white font-semibold">
             {formatMetricValue(latestMargin)}
           </span>
         </div>
         <div className="bg-nubank-dark rounded-lg px-3 py-2">
-          <span className="text-nubank-muted text-xs block">CAGR</span>
+          <span className="text-nubank-muted text-xs block">CAGR lucro 5a</span>
           <span className="text-white font-semibold">
             {asset.cagr !== null ? formatMetricValue(asset.cagr) : "—"}
           </span>

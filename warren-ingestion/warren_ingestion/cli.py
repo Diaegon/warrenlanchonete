@@ -9,6 +9,7 @@ from pathlib import Path
 from warren_ingestion.b3 import collect_b3_tickers
 from warren_ingestion.exporters import export_backend_rows_csv
 from warren_ingestion.fetching import CVM_CIA_ABERTA_URL, fetch_with_cache
+from warren_ingestion.fundamentals import build_fundamentals_csv, fetch_dfp_zips
 from warren_ingestion.file_readers import (
     read_b3_tickers,
     read_cvm_companies,
@@ -68,6 +69,32 @@ def main() -> None:
     export_parser.add_argument("--report", required=True, type=Path)
     export_parser.add_argument("--output", required=True, type=Path)
     export_parser.set_defaults(handler=_export_backend_companies)
+
+    fetch_dfp_parser = subparsers.add_parser(
+        "fetch-cvm-dfp",
+        help="Download official CVM DFP ZIPs for annual fundamentals.",
+    )
+    fetch_dfp_parser.add_argument("--years", nargs="+", required=True, type=int)
+    fetch_dfp_parser.add_argument("--cache-dir", type=Path, default=Path("data/cache"))
+    fetch_dfp_parser.add_argument("--max-age-hours", type=int, default=24 * 7)
+    fetch_dfp_parser.set_defaults(handler=_fetch_cvm_dfp)
+
+    fundamentals_parser = subparsers.add_parser(
+        "build-fundamentals",
+        help="Build backend fundamentals.csv from cached CVM DFP ZIPs.",
+    )
+    fundamentals_parser.add_argument(
+        "--b3-file",
+        type=Path,
+        default=Path("data/cache/b3/tickers.csv"),
+    )
+    fundamentals_parser.add_argument("--dfp-zips", nargs="+", required=True, type=Path)
+    fundamentals_parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("data/processed/fundamentals.csv"),
+    )
+    fundamentals_parser.set_defaults(handler=_build_fundamentals)
 
     args = parser.parse_args()
     args.handler(args)
@@ -135,6 +162,30 @@ def _export_backend_companies(args: argparse.Namespace) -> None:
             indent=2,
         )
     )
+
+
+def _fetch_cvm_dfp(args: argparse.Namespace) -> None:
+    paths = fetch_dfp_zips(
+        args.years,
+        cache_dir=args.cache_dir,
+        max_age_hours=args.max_age_hours,
+    )
+    print(
+        json.dumps(
+            {"years": args.years, "paths": [str(path) for path in paths]},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
+def _build_fundamentals(args: argparse.Namespace) -> None:
+    result = build_fundamentals_csv(
+        b3_tickers_path=args.b3_file,
+        dfp_zip_paths=args.dfp_zips,
+        output_path=args.output,
+    )
+    print(json.dumps(result.__dict__, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

@@ -122,6 +122,42 @@ class TestAnalyzeStock:
         assert result.buffett_citations[0].year == 1992
         assert result.retail_adaptation_note != ""
 
+    async def test_analyze_stock_prompt_marks_missing_metrics_unavailable(self):
+        """Prompt must not let the model award points for missing metrics."""
+        mock_message = MagicMock()
+        mock_message.content = json.dumps(
+            {
+                "score": 4.0,
+                "verdict": "ATENÇÃO",
+                "buffett_verdict": "Dados parciais.",
+                "buffett_citations": [],
+                "retail_adaptation_note": "Métricas ausentes reduzem a confiança.",
+            }
+        )
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
+        mock_completion = MagicMock()
+        mock_completion.choices = [mock_choice]
+        mock_openai_client = MagicMock()
+        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+
+        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+            svc = self._make_service()
+            await svc.analyze_stock(
+                company=_make_mock_company(),
+                financials=_make_mock_financial(cagr_lucro=None, divida_ebitda=None),
+                citations=[],
+            )
+
+        messages = mock_openai_client.chat.completions.create.call_args.kwargs["messages"]
+        user_prompt = messages[1]["content"]
+        system_prompt = messages[0]["content"]
+        assert "LATEST ANNUAL FINANCIALS (fiscal year 2024, CVM DFP)" in user_prompt
+        assert "- 5-year profit CAGR: unavailable" in user_prompt
+        assert "- Debt/EBITDA: unavailable" in user_prompt
+        assert "Do not award points for unavailable metrics" in user_prompt
+        assert "If a metric is unavailable, give 0 points" in system_prompt
+
     async def test_raises_openai_unavailable_on_api_connection_error(self):
         """analyze_stock raises OpenAIUnavailableError on APIConnectionError."""
         from app.services.analysis_service import AnalysisService

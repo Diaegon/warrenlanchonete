@@ -30,6 +30,7 @@ interface BackendCitation {
 }
 
 interface BackendFinancialSnapshot {
+  year: number | null;
   roe: number | null;
   margem_liquida: number | null;
   cagr_lucro: number | null;
@@ -154,7 +155,7 @@ function normalizeAsset(asset: BackendAssetResult | AssetResult): AssetResult {
   }
 
   if (asset.type === "STOCK") {
-    const year = 2024;
+    const year = asset.financials?.year ?? 2024;
     return {
       asset_type: "STOCK",
       ticker: asset.ticker,

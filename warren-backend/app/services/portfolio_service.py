@@ -334,6 +334,7 @@ class PortfolioService:
             score=analysis.score,
             verdict=analysis.verdict,
             financials=FinancialSnapshot(
+                year=financial.year,
                 roe=float(financial.roe) if financial.roe is not None else None,
                 margem_liquida=float(financial.margem_liquida) if financial.margem_liquida is not None else None,
                 cagr_lucro=float(financial.cagr_lucro) if financial.cagr_lucro is not None else None,
@@ -367,6 +368,7 @@ def _make_degraded_stock_response(
         score=0.0,
         verdict="ATENÇÃO",
         financials=FinancialSnapshot(
+            year=financial.year,
             roe=float(financial.roe) if financial.roe is not None else None,
             margem_liquida=float(financial.margem_liquida) if financial.margem_liquida is not None else None,
             cagr_lucro=float(financial.cagr_lucro) if financial.cagr_lucro is not None else None,
@@ -391,6 +393,7 @@ def _make_missing_financials_stock_response(
         score=0.0,
         verdict="Dados financeiros indisponíveis",
         financials=FinancialSnapshot(
+            year=None,
             roe=None,
             margem_liquida=None,
             cagr_lucro=None,
