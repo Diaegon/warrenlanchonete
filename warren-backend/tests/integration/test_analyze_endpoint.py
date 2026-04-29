@@ -63,7 +63,6 @@ async def test_analyze_endpoint_returns_valid_portfolio_response():
 async def test_wege3_has_score_and_citations():
     """WEGE3 STOCK asset in response has a numeric score and at least one citation."""
     from app.main import app
-    from app.schemas.portfolio import StockAssetResponse
 
     payload = {
         "assets": [

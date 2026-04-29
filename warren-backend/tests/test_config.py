@@ -2,7 +2,6 @@
 
 RED → GREEN → REFACTOR: write tests first, then implement.
 """
-import os
 import pytest
 from pydantic import ValidationError
 

@@ -9,10 +9,8 @@ Tests:
 from __future__ import annotations
 
 import re
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
-import chromadb
-import pytest
 
 
 class TestParseYear:
@@ -259,7 +257,8 @@ class TestIngestHTML:
     def test_ingest_html_file_stores_chunks(self, chroma_client):
         """HTML files should be ingested using html.parser text extraction."""
         from app.rag.ingest import ingest_pdf
-        import tempfile, os
+        import tempfile
+        import os
 
         html_content = """<html><body>
         <p>Our gain in net worth during 1984 was a very meaningful amount of capital.
@@ -293,7 +292,8 @@ class TestIngestHTML:
     def test_ingest_skips_binary_html_files(self, chroma_client):
         """Binary/unreadable HTML files should be skipped with a warning."""
         from app.rag.ingest import ingest_pdf
-        import tempfile, os
+        import tempfile
+        import os
 
         # Write binary garbage — simulates the corrupted 1977–1983 files
         binary_content = bytes(range(256)) * 10

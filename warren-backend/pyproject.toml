@@ -31,6 +31,7 @@ dependencies = [
     "pytest-cov",
     "pytest-mock",
     "prometheus-client",
+    "ruff",
 ]
 
 [build-system]

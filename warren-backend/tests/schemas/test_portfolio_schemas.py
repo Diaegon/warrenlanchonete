@@ -168,13 +168,10 @@ class TestResponseSchemas:
     def test_asset_response_discriminated_union_stock(self) -> None:
         """AssetResponse discriminated union resolves STOCK correctly."""
         from app.schemas.portfolio import (
-            AssetResponse,
-            BuffettCitation,
             FinancialSnapshot,
             PortfolioResponse,
             StockAssetResponse,
         )
-        from typing import get_args
         # Create a portfolio response with a stock
         stock = StockAssetResponse(
             ticker="WEGE3",

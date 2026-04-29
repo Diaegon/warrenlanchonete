@@ -78,7 +78,7 @@ class TestAnalyzeStock:
 
     async def test_parses_valid_json_response_into_stock_analysis(self):
         """analyze_stock returns StockAnalysis with correct fields from valid JSON."""
-        from app.services.analysis_service import AnalysisService, StockAnalysis
+        from app.services.analysis_service import StockAnalysis
 
         valid_response = {
             "score": 8.5,
@@ -160,7 +160,6 @@ class TestAnalyzeStock:
 
     async def test_raises_openai_unavailable_on_api_connection_error(self):
         """analyze_stock raises OpenAIUnavailableError on APIConnectionError."""
-        from app.services.analysis_service import AnalysisService
 
         mock_openai_client = MagicMock()
         mock_openai_client.chat.completions.create = AsyncMock(
@@ -178,7 +177,6 @@ class TestAnalyzeStock:
 
     async def test_raises_openai_unavailable_on_api_timeout_error(self):
         """analyze_stock raises OpenAIUnavailableError on APITimeoutError."""
-        from app.services.analysis_service import AnalysisService
 
         mock_openai_client = MagicMock()
         mock_openai_client.chat.completions.create = AsyncMock(
@@ -196,7 +194,6 @@ class TestAnalyzeStock:
 
     async def test_raises_openai_unavailable_on_rate_limit_error(self):
         """analyze_stock raises OpenAIUnavailableError on RateLimitError (HTTP 429)."""
-        from app.services.analysis_service import AnalysisService
 
         mock_openai_client = MagicMock()
         mock_openai_client.chat.completions.create = AsyncMock(
@@ -238,7 +235,6 @@ class TestAnalyzeStock:
 
     async def test_raises_openai_unavailable_on_invalid_json(self):
         """analyze_stock raises OpenAIUnavailableError when response is not valid JSON."""
-        from app.services.analysis_service import AnalysisService
 
         mock_message = MagicMock()
         mock_message.content = "This is not valid JSON at all!!!"
@@ -292,7 +288,7 @@ class TestGeneratePortfolioSummary:
 
     async def test_parses_valid_json_into_portfolio_summary(self):
         """generate_portfolio_summary returns PortfolioSummary from valid JSON."""
-        from app.services.analysis_service import AnalysisService, PortfolioSummary
+        from app.services.analysis_service import PortfolioSummary
 
         valid_response = {
             "portfolio_grade": "B+",

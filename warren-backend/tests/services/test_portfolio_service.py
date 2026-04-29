@@ -5,7 +5,7 @@ TDD: tests written before implementation. All AI services are mocked.
 from __future__ import annotations
 
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -475,7 +475,7 @@ class TestPortfolioServiceAnalyze:
         service = self._make_service(rag_service=mock_rag, analysis_service=mock_analysis)
         request = self._make_request([make_asset("WEGE3", "STOCK", 100.0)])
 
-        response = await service.analyze(request, mock_db)
+        await service.analyze(request, mock_db)
         assert mock_db.execute.called
         stmt = mock_db.execute.call_args[0][0]
         compiled = stmt.compile(compile_kwargs={"literal_binds": True})

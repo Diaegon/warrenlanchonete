@@ -9,7 +9,6 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import chromadb
-import pytest
 
 
 class TestGetCollection:
@@ -40,7 +39,6 @@ class TestGetChromaClient:
     def test_get_chroma_client_returns_client(self):
         """get_chroma_client() returns a chromadb client instance."""
         import app.rag.client as client_module
-        from unittest.mock import MagicMock
 
         # Reset singleton so we can test fresh init path
         original = client_module._chroma_client

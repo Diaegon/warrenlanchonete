@@ -14,7 +14,6 @@ from __future__ import annotations
 import uuid
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from typing import Any
 
 import structlog
 from fastapi import FastAPI, Request
@@ -59,7 +58,6 @@ async def lifespan(app: FastAPI):
 
     # ChromaDB and RAGService initialization
     try:
-        import chromadb as _chromadb
         from app.rag.client import get_chroma_client
         from app.services.rag_service import RAGService
 

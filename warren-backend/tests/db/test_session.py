@@ -1,5 +1,4 @@
 """Tests for app/db/session.py async SQLAlchemy setup."""
-import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

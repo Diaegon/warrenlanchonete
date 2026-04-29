@@ -4,7 +4,6 @@ TDD: Written before implementation.
 """
 from __future__ import annotations
 
-import pytest
 from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock, patch
 

@@ -13,9 +13,9 @@ from sqlalchemy import engine_from_config, pool
 load_dotenv()
 
 # Import all models so Base.metadata is populated before autogenerate
-from app.db.session import Base  # noqa: F401
-import app.models.company  # noqa: F401
-import app.models.financial  # noqa: F401
+from app.db.session import Base  # noqa: F401, E402
+import app.models.company  # noqa: F401, E402
+import app.models.financial  # noqa: F401, E402
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

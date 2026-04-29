@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import structlog
 from fastapi import Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db.session import get_db  # noqa: F401 — re-exported as single source of truth

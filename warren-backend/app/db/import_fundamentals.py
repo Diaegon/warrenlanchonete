@@ -16,7 +16,6 @@ import os
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any
 
 import structlog
 from dotenv import load_dotenv

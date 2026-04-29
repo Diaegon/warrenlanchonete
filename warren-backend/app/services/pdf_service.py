@@ -9,7 +9,6 @@ pool executor to avoid blocking the async event loop.
 from __future__ import annotations
 
 import asyncio
-import os
 from datetime import date
 from pathlib import Path
 
