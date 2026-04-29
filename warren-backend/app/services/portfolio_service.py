@@ -11,6 +11,7 @@ PortfolioService is the single entry point for portfolio analysis. It:
 detect_alerts() is a pure function (no I/O) that implements the tone-of-voice
 trigger system described in ARCHITECTURE.md §7.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -155,7 +156,9 @@ class PortfolioService:
         Raises:
             TickerNotFoundError: If any STOCK ticker is not in the companies table.
         """
-        logger.info("portfolio.analysis.started", tickers=[a.ticker for a in request.assets])
+        logger.info(
+            "portfolio.analysis.started", tickers=[a.ticker for a in request.assets]
+        )
 
         stocks = [a for a in request.assets if a.type == AssetType.STOCK]
         fiis = [a for a in request.assets if a.type == AssetType.FII]
@@ -165,7 +168,9 @@ class PortfolioService:
         # become explicit degraded asset responses below.
         stock_pairs: list[tuple[AssetInput, Company, Financial | None]] = []
         for asset in stocks:
-            company, financial = await self._get_company_and_financials(asset.ticker, db)
+            company, financial = await self._get_company_and_financials(
+                asset.ticker, db
+            )
             stock_pairs.append((asset, company, financial))
 
         # Validate FII and TESOURO tickers against the DB
@@ -190,7 +195,9 @@ class PortfolioService:
                     "portfolio.stock.financials_missing",
                     ticker=asset.ticker,
                 )
-                stock_responses.append(_make_missing_financials_stock_response(asset, company))
+                stock_responses.append(
+                    _make_missing_financials_stock_response(asset, company)
+                )
                 continue
             if isinstance(result, BaseException):
                 logger.warning(
@@ -210,7 +217,9 @@ class PortfolioService:
             for a in fiis
         ]
         tesouro_responses = [
-            TesouroAssetResponse(ticker=a.ticker, type="TESOURO", percentage=a.percentage)
+            TesouroAssetResponse(
+                ticker=a.ticker, type="TESOURO", percentage=a.percentage
+            )
             for a in tesouros
         ]
 
@@ -218,13 +227,15 @@ class PortfolioService:
         alerts = detect_alerts(request.assets)
 
         # Assemble all assets in original order
-        all_asset_responses = (
-            _reorder_assets(request.assets, stock_responses, fii_responses, tesouro_responses)
+        all_asset_responses = _reorder_assets(
+            request.assets, stock_responses, fii_responses, tesouro_responses
         )
 
         # Portfolio summary from AI
         logger.info("portfolio.summary.started")
-        summary = await self._analysis.generate_portfolio_summary(all_asset_responses, alerts)
+        summary = await self._analysis.generate_portfolio_summary(
+            all_asset_responses, alerts
+        )
         logger.info("portfolio.summary.completed", grade=summary.portfolio_grade)
 
         return PortfolioResponse(
@@ -312,7 +323,11 @@ class PortfolioService:
 
         # RAG retrieval
         roe_val = float(financial.roe) if financial.roe is not None else 0.0
-        de_val = float(financial.divida_ebitda) if financial.divida_ebitda is not None else 0.0
+        de_val = (
+            float(financial.divida_ebitda)
+            if financial.divida_ebitda is not None
+            else 0.0
+        )
         citations: list[BuffettCitation] = await self._rag.retrieve(
             ticker=asset.ticker,
             sector=company.sector or "",
@@ -323,7 +338,11 @@ class PortfolioService:
         # AI analysis
         analysis = await self._analysis.analyze_stock(company, financial, citations)
 
-        logger.info("portfolio.stock.analysis.completed", ticker=asset.ticker, score=analysis.score)
+        logger.info(
+            "portfolio.stock.analysis.completed",
+            ticker=asset.ticker,
+            score=analysis.score,
+        )
 
         return StockAssetResponse(
             ticker=asset.ticker,
@@ -336,9 +355,15 @@ class PortfolioService:
             financials=FinancialSnapshot(
                 year=financial.year,
                 roe=float(financial.roe) if financial.roe is not None else None,
-                margem_liquida=float(financial.margem_liquida) if financial.margem_liquida is not None else None,
-                cagr_lucro=float(financial.cagr_lucro) if financial.cagr_lucro is not None else None,
-                divida_ebitda=float(financial.divida_ebitda) if financial.divida_ebitda is not None else None,
+                margem_liquida=float(financial.margem_liquida)
+                if financial.margem_liquida is not None
+                else None,
+                cagr_lucro=float(financial.cagr_lucro)
+                if financial.cagr_lucro is not None
+                else None,
+                divida_ebitda=float(financial.divida_ebitda)
+                if financial.divida_ebitda is not None
+                else None,
             ),
             buffett_verdict=analysis.buffett_verdict,
             buffett_citations=analysis.buffett_citations,
@@ -370,9 +395,15 @@ def _make_degraded_stock_response(
         financials=FinancialSnapshot(
             year=financial.year,
             roe=float(financial.roe) if financial.roe is not None else None,
-            margem_liquida=float(financial.margem_liquida) if financial.margem_liquida is not None else None,
-            cagr_lucro=float(financial.cagr_lucro) if financial.cagr_lucro is not None else None,
-            divida_ebitda=float(financial.divida_ebitda) if financial.divida_ebitda is not None else None,
+            margem_liquida=float(financial.margem_liquida)
+            if financial.margem_liquida is not None
+            else None,
+            cagr_lucro=float(financial.cagr_lucro)
+            if financial.cagr_lucro is not None
+            else None,
+            divida_ebitda=float(financial.divida_ebitda)
+            if financial.divida_ebitda is not None
+            else None,
         ),
         buffett_verdict="Análise indisponível no momento. Tente novamente.",
         buffett_citations=[],

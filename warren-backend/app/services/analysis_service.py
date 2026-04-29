@@ -17,6 +17,7 @@ Error handling:
     - openai.APITimeoutError → OpenAIUnavailableError (HTTP 503)
     - json.JSONDecodeError → OpenAIUnavailableError (HTTP 503)
 """
+
 from __future__ import annotations
 
 import json
@@ -36,6 +37,7 @@ logger = structlog.get_logger(__name__)
 
 
 # ── Internal Pydantic models (not exported as API schemas) ────────────────────
+
 
 class StockAnalysis(BaseModel):
     """Result of per-stock Buffett analysis from GPT-4o."""
@@ -138,6 +140,7 @@ OUTPUT FORMAT (JSON):
 
 # ── Service ───────────────────────────────────────────────────────────────────
 
+
 class AnalysisService:
     """GPT-4o powered analysis service for stocks and portfolio summaries.
 
@@ -181,7 +184,9 @@ class AnalysisService:
                 f'[{c.year}] "{c.passage}"' for c in citations
             )
         else:
-            formatted_citations = "None retrieved. Assess the company based on financials alone."
+            formatted_citations = (
+                "None retrieved. Assess the company based on financials alone."
+            )
 
         def metric(value: Any, suffix: str = "") -> str:
             if value is None:
@@ -261,7 +266,9 @@ class AnalysisService:
                 error=str(exc),
                 elapsed=elapsed,
             )
-            raise OpenAIUnavailableError(f"Failed to parse OpenAI response: {exc}") from exc
+            raise OpenAIUnavailableError(
+                f"Failed to parse OpenAI response: {exc}"
+            ) from exc
 
     async def generate_portfolio_summary(
         self,
@@ -291,16 +298,18 @@ class AnalysisService:
                     f"sector={asset.sector}, {asset.percentage}%"
                 )
             elif asset_type == "FII":
-                asset_lines.append(f"- {asset.ticker}: FII, {asset.percentage}% — deep analysis pending")
+                asset_lines.append(
+                    f"- {asset.ticker}: FII, {asset.percentage}% — deep analysis pending"
+                )
             else:  # TESOURO
-                asset_lines.append(f"- {asset.ticker}: TESOURO, {asset.percentage}% — safe capital")
+                asset_lines.append(
+                    f"- {asset.ticker}: TESOURO, {asset.percentage}% — safe capital"
+                )
 
         assets_text = "\n".join(asset_lines) if asset_lines else "No assets provided."
 
         if alerts:
-            alerts_text = "\n".join(
-                f"- {a.type}: {a.message}" for a in alerts
-            )
+            alerts_text = "\n".join(f"- {a.type}: {a.message}" for a in alerts)
         else:
             alerts_text = "none"
 
@@ -367,4 +376,6 @@ class AnalysisService:
                 error=str(exc),
                 elapsed=elapsed,
             )
-            raise OpenAIUnavailableError(f"Failed to parse OpenAI response: {exc}") from exc
+            raise OpenAIUnavailableError(
+                f"Failed to parse OpenAI response: {exc}"
+            ) from exc

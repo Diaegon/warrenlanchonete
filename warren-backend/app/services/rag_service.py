@@ -13,6 +13,7 @@ Query construction strategy (from ARCHITECTURE.md §3):
 Errors are caught and logged; the method returns [] so the analysis pipeline
 can continue with empty citations (graceful degradation).
 """
+
 from __future__ import annotations
 
 import structlog
@@ -49,7 +50,9 @@ class RAGService:
             client=chroma_client,
             collection_name="buffett_letters",
             embedding_function=OpenAIEmbeddings(
-                model=settings.EMBEDDING_MODEL if settings is not None else "text-embedding-3-small",
+                model=settings.EMBEDDING_MODEL
+                if settings is not None
+                else "text-embedding-3-small",
                 api_key=settings.OPENAI_API_KEY if settings is not None else None,
             ),
         )
@@ -76,8 +79,10 @@ class RAGService:
             List of BuffettCitation objects, empty if no results or on error.
         """
         debt_level = (
-            "low debt" if divida_ebitda < 1.0
-            else "moderate debt" if divida_ebitda < 3.0
+            "low debt"
+            if divida_ebitda < 1.0
+            else "moderate debt"
+            if divida_ebitda < 3.0
             else "high debt"
         )
         moat_hint = SECTOR_MOAT_HINTS.get(sector, "competitive position")

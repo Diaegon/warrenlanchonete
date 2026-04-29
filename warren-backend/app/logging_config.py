@@ -8,6 +8,7 @@ Configures structured logging with:
 
 Call configure_logging() once at application startup (in lifespan or __init__).
 """
+
 from __future__ import annotations
 
 import logging
@@ -35,7 +36,9 @@ def _redact_sensitive_fields(logger: object, method: str, event_dict: dict) -> d
     return event_dict
 
 
-def configure_logging(environment: str = "development", log_level: str = "INFO") -> None:
+def configure_logging(
+    environment: str = "development", log_level: str = "INFO"
+) -> None:
     """Configure structlog for the given environment.
 
     Args:

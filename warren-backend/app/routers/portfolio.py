@@ -6,6 +6,7 @@ query parameter triggers PDF generation via PDFService.
 Routes:
     POST /portfolio/analyze — Analyze a portfolio request.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,9 @@ router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 @router.post("/analyze", response_model=None)
 async def analyze_portfolio(
     request: PortfolioRequest,
-    format: str | None = Query(default=None, description="Response format. Use 'pdf' for PDF export."),
+    format: str | None = Query(
+        default=None, description="Response format. Use 'pdf' for PDF export."
+    ),
     db: AsyncSession = Depends(get_db),
     portfolio_service: PortfolioService = Depends(get_portfolio_service),
 ):

@@ -2,6 +2,7 @@
 
 TDD: WeasyPrint is mocked — no actual PDF is generated in these tests.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -21,6 +22,7 @@ def _make_portfolio_response():
         BuffettCitation,
         TesouroAssetResponse,
     )
+
     return PortfolioResponse(
         portfolio_grade="B+",
         portfolio_summary="Portfólio razoável.",
@@ -41,7 +43,9 @@ def _make_portfolio_response():
                 ),
                 buffett_verdict="Empresa sólida.",
                 buffett_citations=[
-                    BuffettCitation(year=1992, passage="Some passage", relevance="Relevant")
+                    BuffettCitation(
+                        year=1992, passage="Some passage", relevance="Relevant"
+                    )
                 ],
                 retail_adaptation_note="Adapted note.",
             ),
@@ -69,7 +73,9 @@ class TestPDFService:
         assert isinstance(result, bytes)
         assert len(result) > 0
 
-    async def test_generate_raises_pdf_generation_error_on_weasyprint_exception(self) -> None:
+    async def test_generate_raises_pdf_generation_error_on_weasyprint_exception(
+        self,
+    ) -> None:
         """generate() raises PDFGenerationError when WeasyPrint raises."""
         from app.exceptions import PDFGenerationError
         from app.services.pdf_service import PDFService

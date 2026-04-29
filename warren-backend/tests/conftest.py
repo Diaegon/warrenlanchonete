@@ -6,6 +6,7 @@ Provides:
     chroma_with_data: In-memory ChromaDB seeded with 3 Buffett passages.
     async_client: httpx AsyncClient wrapping the FastAPI app with DB override.
 """
+
 from __future__ import annotations
 
 import os
@@ -25,6 +26,7 @@ from app.db.session import Base
 
 
 # ── Database Fixture (in-memory SQLite) ──────────────────────────────────────
+
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
@@ -48,7 +50,9 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async with session_factory() as session:
         yield session
@@ -60,6 +64,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 # ── ChromaDB Fixtures ─────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def chroma_client():
@@ -73,6 +78,7 @@ def chroma_client():
     """
     try:
         import chromadb
+
         return chromadb.EphemeralClient()
     except ImportError:
         pytest.skip("chromadb not installed")
@@ -100,15 +106,31 @@ def chroma_with_data(chroma_client):
             "Our favorite holding period is forever. We look for durable competitive advantages.",
         ],
         metadatas=[
-            {"year": 1992, "letter_type": "shareholder_letter", "topic": "", "source_file": "1992_letter.pdf"},
-            {"year": 2000, "letter_type": "shareholder_letter", "topic": "", "source_file": "2000_letter.pdf"},
-            {"year": 2007, "letter_type": "shareholder_letter", "topic": "", "source_file": "2007_letter.pdf"},
+            {
+                "year": 1992,
+                "letter_type": "shareholder_letter",
+                "topic": "",
+                "source_file": "1992_letter.pdf",
+            },
+            {
+                "year": 2000,
+                "letter_type": "shareholder_letter",
+                "topic": "",
+                "source_file": "2000_letter.pdf",
+            },
+            {
+                "year": 2007,
+                "letter_type": "shareholder_letter",
+                "topic": "",
+                "source_file": "2007_letter.pdf",
+            },
         ],
     )
     return chroma_client
 
 
 # ── FastAPI Async Client Fixture ──────────────────────────────────────────────
+
 
 @pytest_asyncio.fixture
 async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
@@ -147,7 +169,9 @@ async def async_client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, 
     app.dependency_overrides[get_portfolio_service] = override_get_portfolio_service
     app.dependency_overrides[get_rag_service] = override_get_rag_service
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         # Expose the mock so tests can configure it
         client.app = app  # type: ignore[attr-defined]
         client.mock_portfolio_service = mock_portfolio_service  # type: ignore[attr-defined]

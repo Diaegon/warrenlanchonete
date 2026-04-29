@@ -15,6 +15,7 @@ The tests verify end-to-end behavior:
     - WEGE3 (STOCK) has a numeric score and at least one citation
     - TESOURO has 'Capital seguro' verdict
 """
+
 from __future__ import annotations
 
 import pytest
@@ -43,7 +44,9 @@ async def test_analyze_endpoint_returns_valid_portfolio_response():
         ]
     }
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post("/api/portfolio/analyze", json=payload)
 
     assert response.status_code == 200, (
@@ -54,7 +57,18 @@ async def test_analyze_endpoint_returns_valid_portfolio_response():
 
     # Validate response matches PortfolioResponse schema
     portfolio = PortfolioResponse(**data)
-    assert portfolio.portfolio_grade in ["A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"]
+    assert portfolio.portfolio_grade in [
+        "A",
+        "A-",
+        "B+",
+        "B",
+        "B-",
+        "C+",
+        "C",
+        "C-",
+        "D",
+        "F",
+    ]
     assert len(portfolio.portfolio_summary) > 0
     assert len(portfolio.assets) == 2
 
@@ -71,7 +85,9 @@ async def test_wege3_has_score_and_citations():
         ]
     }
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post("/api/portfolio/analyze", json=payload)
 
     assert response.status_code == 200
@@ -100,7 +116,9 @@ async def test_tesouro_has_capital_seguro_verdict():
         ]
     }
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
         response = await client.post("/api/portfolio/analyze", json=payload)
 
     assert response.status_code == 200

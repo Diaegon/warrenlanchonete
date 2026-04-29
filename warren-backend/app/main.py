@@ -9,6 +9,7 @@ Creates and configures the FastAPI application with:
 - Health and readiness endpoints
 - Prometheus instrumentation
 """
+
 from __future__ import annotations
 
 import uuid
@@ -24,7 +25,11 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.db.session import engine
-from app.exceptions import OpenAIUnavailableError, PDFGenerationError, TickerNotFoundError
+from app.exceptions import (
+    OpenAIUnavailableError,
+    PDFGenerationError,
+    TickerNotFoundError,
+)
 from app.logging_config import configure_logging
 from app.routers.companies import router as companies_router
 from app.routers.portfolio import router as portfolio_router
@@ -36,6 +41,7 @@ _request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -70,7 +76,11 @@ async def lifespan(app: FastAPI):
         # start without RAG service — /ready endpoint will reflect degraded state
         app.state.chroma_client = None
         app.state.rag_service = None
-        logger.warning("warren_backend.rag_init_failed", error=str(exc), rag_service_initialized=False)
+        logger.warning(
+            "warren_backend.rag_init_failed",
+            error=str(exc),
+            rag_service_initialized=False,
+        )
 
     yield
 
@@ -108,6 +118,7 @@ app.add_middleware(
 
 # ── Request ID Middleware ─────────────────────────────────────────────────────
 
+
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next):
     """Generate a UUID4 request ID per request and inject into structlog context.
@@ -132,18 +143,25 @@ async def request_id_middleware(request: Request, call_next):
 
 # ── Exception Handlers ────────────────────────────────────────────────────────
 
+
 @app.exception_handler(TickerNotFoundError)
-async def ticker_not_found_handler(request: Request, exc: TickerNotFoundError) -> JSONResponse:
+async def ticker_not_found_handler(
+    request: Request, exc: TickerNotFoundError
+) -> JSONResponse:
     """Handle TickerNotFoundError → 404."""
     return JSONResponse(status_code=404, content={"detail": str(exc)})
 
 
 @app.exception_handler(OpenAIUnavailableError)
-async def openai_unavailable_handler(request: Request, exc: OpenAIUnavailableError) -> JSONResponse:
+async def openai_unavailable_handler(
+    request: Request, exc: OpenAIUnavailableError
+) -> JSONResponse:
     """Handle OpenAIUnavailableError → 503."""
     return JSONResponse(
         status_code=503,
-        content={"detail": "Analysis service temporarily unavailable. Try again in a moment."},
+        content={
+            "detail": "Analysis service temporarily unavailable. Try again in a moment."
+        },
     )
 
 
@@ -160,6 +178,7 @@ app.include_router(companies_router, prefix="/api")
 
 
 # ── Health & Readiness Endpoints ──────────────────────────────────────────────
+
 
 @app.get("/health", tags=["ops"])
 async def health() -> dict[str, str]:
@@ -184,6 +203,7 @@ async def ready(request: Request) -> JSONResponse:
     # DB check
     try:
         from app.db.session import AsyncSessionLocal
+
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
     except Exception as exc:

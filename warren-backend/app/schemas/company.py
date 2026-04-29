@@ -2,6 +2,7 @@
 
 Used by GET /api/companies and GET /api/companies/{ticker}.
 """
+
 from pydantic import BaseModel, ConfigDict
 
 

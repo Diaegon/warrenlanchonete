@@ -15,6 +15,7 @@ Usage:
     uv run python -m app.rag.ingest
     uv run python -m app.rag.ingest --source-dir path/to/letters
 """
+
 from __future__ import annotations
 
 import re
@@ -136,7 +137,9 @@ def ingest_pdf(
         return 0
 
     paragraphs = full_text.split("\n\n")
-    splitter = RecursiveCharacterTextSplitter(chunk_size=_CHUNK_SIZE, chunk_overlap=_CHUNK_OVERLAP)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=_CHUNK_SIZE, chunk_overlap=_CHUNK_OVERLAP
+    )
 
     chunks: list[str] = []
     for para in paragraphs:
@@ -157,12 +160,19 @@ def ingest_pdf(
     source_stem = Path(source_file).stem
     ids = [f"{source_stem}_chunk_{i:03d}" for i in range(len(chunks))]
     metadatas = [
-        {"year": year, "letter_type": "shareholder_letter", "topic": "", "source_file": source_file}
+        {
+            "year": year,
+            "letter_type": "shareholder_letter",
+            "topic": "",
+            "source_file": source_file,
+        }
         for _ in chunks
     ]
 
     embeddings = embedding_fn.embed_documents(chunks)
-    collection.add(ids=ids, documents=chunks, embeddings=embeddings, metadatas=metadatas)
+    collection.add(
+        ids=ids, documents=chunks, embeddings=embeddings, metadatas=metadatas
+    )
 
     log.info("ingest.file.completed", chunks_ingested=len(chunks))
     return len(chunks)
@@ -192,7 +202,9 @@ def run(source_dir: Path | None = None) -> None:
     )
 
     all_files = sorted(source_dir.glob("*.pdf")) + sorted(source_dir.glob("*.html"))
-    logger.info("ingest.scan.started", file_count=len(all_files), directory=str(source_dir))
+    logger.info(
+        "ingest.scan.started", file_count=len(all_files), directory=str(source_dir)
+    )
 
     total_ingested = 0
     total_skipped = 0
@@ -210,7 +222,9 @@ def run(source_dir: Path | None = None) -> None:
             total_skipped += 1
             continue
 
-        count = ingest_pdf(filename, year, collection, embedding_fn, pdf_path=str(file_path))
+        count = ingest_pdf(
+            filename, year, collection, embedding_fn, pdf_path=str(file_path)
+        )
         total_ingested += count
 
     logger.info(

@@ -10,6 +10,7 @@ Tests:
 
 All tests marked @pytest.mark.slow (mocked OpenAI).
 """
+
 from __future__ import annotations
 
 import json
@@ -70,6 +71,7 @@ class TestAnalyzeStock:
     def _make_service(self):
         """Create an AnalysisService with mocked OpenAI client."""
         from app.services.analysis_service import AnalysisService
+
         return AnalysisService(
             api_key="sk-test-key",
             model="gpt-4o",
@@ -104,9 +106,14 @@ class TestAnalyzeStock:
         mock_completion.choices = [mock_choice]
 
         mock_openai_client = MagicMock()
-        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+        mock_openai_client.chat.completions.create = AsyncMock(
+            return_value=mock_completion
+        )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             result = await svc.analyze_stock(
                 company=_make_mock_company(),
@@ -139,9 +146,14 @@ class TestAnalyzeStock:
         mock_completion = MagicMock()
         mock_completion.choices = [mock_choice]
         mock_openai_client = MagicMock()
-        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+        mock_openai_client.chat.completions.create = AsyncMock(
+            return_value=mock_completion
+        )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             await svc.analyze_stock(
                 company=_make_mock_company(),
@@ -149,7 +161,9 @@ class TestAnalyzeStock:
                 citations=[],
             )
 
-        messages = mock_openai_client.chat.completions.create.call_args.kwargs["messages"]
+        messages = mock_openai_client.chat.completions.create.call_args.kwargs[
+            "messages"
+        ]
         user_prompt = messages[1]["content"]
         system_prompt = messages[0]["content"]
         assert "LATEST ANNUAL FINANCIALS (fiscal year 2024, CVM DFP)" in user_prompt
@@ -166,7 +180,10 @@ class TestAnalyzeStock:
             side_effect=openai.APIConnectionError(request=MagicMock())
         )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             with pytest.raises(OpenAIUnavailableError):
                 await svc.analyze_stock(
@@ -183,7 +200,10 @@ class TestAnalyzeStock:
             side_effect=openai.APITimeoutError(request=MagicMock())
         )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             with pytest.raises(OpenAIUnavailableError):
                 await svc.analyze_stock(
@@ -204,7 +224,10 @@ class TestAnalyzeStock:
             )
         )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             with pytest.raises(OpenAIUnavailableError):
                 await svc.analyze_stock(
@@ -224,7 +247,10 @@ class TestAnalyzeStock:
             )
         )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             with pytest.raises(OpenAIUnavailableError):
                 await svc.analyze_stock(
@@ -246,9 +272,14 @@ class TestAnalyzeStock:
         mock_completion.choices = [mock_choice]
 
         mock_openai_client = MagicMock()
-        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+        mock_openai_client.chat.completions.create = AsyncMock(
+            return_value=mock_completion
+        )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             with pytest.raises(OpenAIUnavailableError):
                 await svc.analyze_stock(
@@ -264,6 +295,7 @@ class TestGeneratePortfolioSummary:
 
     def _make_service(self):
         from app.services.analysis_service import AnalysisService
+
         return AnalysisService(
             api_key="sk-test-key",
             model="gpt-4o",
@@ -281,7 +313,10 @@ class TestGeneratePortfolioSummary:
             )
         )
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             with pytest.raises(OpenAIUnavailableError):
                 await svc.generate_portfolio_summary(assets=[], alerts=[])
@@ -309,7 +344,9 @@ class TestGeneratePortfolioSummary:
         mock_completion.choices = [mock_choice]
 
         mock_openai_client = MagicMock()
-        mock_openai_client.chat.completions.create = AsyncMock(return_value=mock_completion)
+        mock_openai_client.chat.completions.create = AsyncMock(
+            return_value=mock_completion
+        )
 
         # Create minimal mock assets and alerts
         mock_stock = MagicMock()
@@ -320,7 +357,10 @@ class TestGeneratePortfolioSummary:
         mock_stock.sector = "Industrial"
         mock_stock.percentage = 100.0
 
-        with patch("app.services.analysis_service.openai.AsyncOpenAI", return_value=mock_openai_client):
+        with patch(
+            "app.services.analysis_service.openai.AsyncOpenAI",
+            return_value=mock_openai_client,
+        ):
             svc = self._make_service()
             result = await svc.generate_portfolio_summary(
                 assets=[mock_stock],
@@ -399,9 +439,10 @@ class TestSystemPromptCompliance:
         """System prompt must contain the 'NEVER use' directive language prohibition."""
         from app.services.analysis_service import _STOCK_SYSTEM_PROMPT
 
-        assert "NEVER use" in _STOCK_SYSTEM_PROMPT or "never use" in _STOCK_SYSTEM_PROMPT.lower(), (
-            "System prompt must explicitly prohibit certain language"
-        )
+        assert (
+            "NEVER use" in _STOCK_SYSTEM_PROMPT
+            or "never use" in _STOCK_SYSTEM_PROMPT.lower()
+        ), "System prompt must explicitly prohibit certain language"
 
     def test_stock_system_prompt_contains_retail_context(self):
         """System prompt must reference retail investor context."""
@@ -428,7 +469,11 @@ class TestInternalModels:
             verdict="APROVADO",
             buffett_verdict="Empresa excelente com moat durável.",
             buffett_citations=[
-                {"year": 1992, "passage": "High returns on capital.", "relevance": "ROE>25%"}
+                {
+                    "year": 1992,
+                    "passage": "High returns on capital.",
+                    "relevance": "ROE>25%",
+                }
             ],
             retail_adaptation_note="Ótimo para carteira de longo prazo.",
         )

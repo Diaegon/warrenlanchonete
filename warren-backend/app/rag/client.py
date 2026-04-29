@@ -14,6 +14,7 @@ Note on embedding functions:
     OpenAIEmbeddings directly). This module provides the raw PersistentClient
     singleton that is passed to the LangChain Chroma wrapper in RAGService.
 """
+
 from __future__ import annotations
 
 import chromadb

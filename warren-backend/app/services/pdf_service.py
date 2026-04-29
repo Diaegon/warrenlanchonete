@@ -6,6 +6,7 @@ a PDF binary suitable for streaming to the HTTP client.
 WeasyPrint is CPU-bound (500ms–2s). The generate() method runs it in a thread
 pool executor to avoid blocking the async event loop.
 """
+
 from __future__ import annotations
 
 import asyncio

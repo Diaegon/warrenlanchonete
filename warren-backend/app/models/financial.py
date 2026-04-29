@@ -1,4 +1,5 @@
 """SQLAlchemy ORM model for the financials table."""
+
 from sqlalchemy import Column, ForeignKey, Integer, Numeric, UniqueConstraint
 from sqlalchemy.orm import relationship
 
@@ -34,9 +35,7 @@ class Financial(Base):
     __tablename__ = "financials"
 
     id: int = Column(Integer, primary_key=True, autoincrement=True)
-    company_id: int = Column(
-        Integer, ForeignKey("companies.id"), nullable=False
-    )
+    company_id: int = Column(Integer, ForeignKey("companies.id"), nullable=False)
     year: int = Column(Integer, nullable=False)
 
     roe = Column(Numeric(10, 4), nullable=True)
@@ -52,7 +51,9 @@ class Financial(Base):
 
     company = relationship("Company", back_populates="financials")
 
-    __table_args__ = (UniqueConstraint("company_id", "year", name="uq_financials_company_year"),)
+    __table_args__ = (
+        UniqueConstraint("company_id", "year", name="uq_financials_company_year"),
+    )
 
     def __repr__(self) -> str:
         return f"<Financial company_id={self.company_id} year={self.year}>"

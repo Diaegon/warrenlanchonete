@@ -2,6 +2,7 @@
 
 TDD: PortfolioService is fully mocked via dependency override.
 """
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock
@@ -19,6 +20,7 @@ def _make_portfolio_response():
         StockAssetResponse,
         TesouroAssetResponse,
     )
+
     return PortfolioResponse(
         portfolio_grade="B+",
         portfolio_summary="Portfólio razoável.",
@@ -37,7 +39,9 @@ def _make_portfolio_response():
                 ),
                 buffett_verdict="Empresa sólida.",
                 buffett_citations=[
-                    BuffettCitation(year=1992, passage="Some passage", relevance="Relevant")
+                    BuffettCitation(
+                        year=1992, passage="Some passage", relevance="Relevant"
+                    )
                 ],
                 retail_adaptation_note="Adapted note.",
             ),
@@ -64,7 +68,9 @@ class TestPortfolioAnalyze:
         async_client.mock_portfolio_service.analyze = AsyncMock(
             return_value=_make_portfolio_response()
         )
-        response = await async_client.post("/api/portfolio/analyze", json=_VALID_REQUEST)
+        response = await async_client.post(
+            "/api/portfolio/analyze", json=_VALID_REQUEST
+        )
         assert response.status_code == 200
         data = response.json()
         assert "portfolio_grade" in data
@@ -72,7 +78,9 @@ class TestPortfolioAnalyze:
         assert "assets" in data
         assert data["portfolio_grade"] == "B+"
 
-    async def test_invalid_percentages_returns_422(self, async_client: AsyncClient) -> None:
+    async def test_invalid_percentages_returns_422(
+        self, async_client: AsyncClient
+    ) -> None:
         """Request with percentages not summing to 100 returns 422."""
         bad_request = {
             "assets": [
@@ -87,26 +95,36 @@ class TestPortfolioAnalyze:
     async def test_unknown_ticker_returns_404(self, async_client: AsyncClient) -> None:
         """PortfolioService raising TickerNotFoundError returns 404."""
         from app.exceptions import TickerNotFoundError
+
         async_client.mock_portfolio_service.analyze = AsyncMock(
             side_effect=TickerNotFoundError("UNKNOWN1")
         )
-        response = await async_client.post("/api/portfolio/analyze", json=_VALID_REQUEST)
+        response = await async_client.post(
+            "/api/portfolio/analyze", json=_VALID_REQUEST
+        )
         assert response.status_code == 404
         data = response.json()
         assert "UNKNOWN1" in data["detail"]
 
-    async def test_openai_unavailable_returns_503(self, async_client: AsyncClient) -> None:
+    async def test_openai_unavailable_returns_503(
+        self, async_client: AsyncClient
+    ) -> None:
         """PortfolioService raising OpenAIUnavailableError returns 503."""
         from app.exceptions import OpenAIUnavailableError
+
         async_client.mock_portfolio_service.analyze = AsyncMock(
             side_effect=OpenAIUnavailableError("OpenAI down")
         )
-        response = await async_client.post("/api/portfolio/analyze", json=_VALID_REQUEST)
+        response = await async_client.post(
+            "/api/portfolio/analyze", json=_VALID_REQUEST
+        )
         assert response.status_code == 503
         data = response.json()
         assert "detail" in data
 
-    async def test_format_pdf_returns_pdf_content_type(self, async_client: AsyncClient) -> None:
+    async def test_format_pdf_returns_pdf_content_type(
+        self, async_client: AsyncClient
+    ) -> None:
         """?format=pdf returns application/pdf content type."""
         from unittest.mock import patch
 
@@ -116,7 +134,9 @@ class TestPortfolioAnalyze:
 
         with patch("app.routers.portfolio.PDFService") as mock_pdf_cls:
             mock_pdf_instance = mock_pdf_cls.return_value
-            mock_pdf_instance.generate = AsyncMock(return_value=b"%PDF-1.4 fake content")
+            mock_pdf_instance.generate = AsyncMock(
+                return_value=b"%PDF-1.4 fake content"
+            )
 
             response = await async_client.post(
                 "/api/portfolio/analyze?format=pdf", json=_VALID_REQUEST
@@ -125,13 +145,19 @@ class TestPortfolioAnalyze:
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/pdf"
 
-    async def test_analyze_returns_503_on_timeout(self, async_client: AsyncClient) -> None:
+    async def test_analyze_returns_503_on_timeout(
+        self, async_client: AsyncClient
+    ) -> None:
         """asyncio.TimeoutError from wait_for returns 503 with 'timed out' detail."""
         import asyncio
         from unittest.mock import patch
 
-        with patch("app.routers.portfolio.asyncio.wait_for", side_effect=asyncio.TimeoutError()):
-            response = await async_client.post("/api/portfolio/analyze", json=_VALID_REQUEST)
+        with patch(
+            "app.routers.portfolio.asyncio.wait_for", side_effect=asyncio.TimeoutError()
+        ):
+            response = await async_client.post(
+                "/api/portfolio/analyze", json=_VALID_REQUEST
+            )
 
         assert response.status_code == 503
         assert "timed out" in response.json()["detail"].lower()
@@ -143,7 +169,9 @@ class TestPortfolioAnalyze:
         )
         assert response.status_code == 422
 
-    async def test_unknown_asset_type_returns_422(self, async_client: AsyncClient) -> None:
+    async def test_unknown_asset_type_returns_422(
+        self, async_client: AsyncClient
+    ) -> None:
         """Unknown asset type returns 422."""
         bad_request = {
             "assets": [

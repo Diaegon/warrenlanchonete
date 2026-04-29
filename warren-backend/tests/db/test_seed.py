@@ -1,4 +1,5 @@
 """Tests for starter database seed data."""
+
 from __future__ import annotations
 
 from sqlalchemy import func, select
@@ -23,8 +24,10 @@ class TestSeedDatabase:
         assert result.financials_created == 3
 
         companies = (
-            await db_session.execute(select(Company).order_by(Company.ticker))
-        ).scalars().all()
+            (await db_session.execute(select(Company).order_by(Company.ticker)))
+            .scalars()
+            .all()
+        )
         assert [company.ticker for company in companies] == [
             "MXRF11",
             "PETR4",
@@ -33,8 +36,10 @@ class TestSeedDatabase:
         ]
 
         financial_years = (
-            await db_session.execute(select(Financial.year).order_by(Financial.year))
-        ).scalars().all()
+            (await db_session.execute(select(Financial.year).order_by(Financial.year)))
+            .scalars()
+            .all()
+        )
         assert financial_years == [2024, 2024, 2024]
 
     async def test_seed_database_loads_b3_tickers_csv(
@@ -63,8 +68,10 @@ class TestSeedDatabase:
         assert result.companies_created == 7  # 3 CSV rows + 3 fallback rows + TESOURO
 
         companies = (
-            await db_session.execute(select(Company).order_by(Company.ticker))
-        ).scalars().all()
+            (await db_session.execute(select(Company).order_by(Company.ticker)))
+            .scalars()
+            .all()
+        )
         assert [company.ticker for company in companies] == [
             "MXRF11",
             "PETR4",
@@ -92,7 +99,11 @@ class TestSeedDatabase:
         assert second.financials_created == 0
         assert second.financials_updated == 3
 
-        company_count = await db_session.scalar(select(func.count()).select_from(Company))
-        financial_count = await db_session.scalar(select(func.count()).select_from(Financial))
+        company_count = await db_session.scalar(
+            select(func.count()).select_from(Company)
+        )
+        financial_count = await db_session.scalar(
+            select(func.count()).select_from(Financial)
+        )
         assert company_count == 4
         assert financial_count == 3

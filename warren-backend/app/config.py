@@ -4,6 +4,7 @@ All configuration is read from environment variables or a .env file.
 Never use os.environ.get() directly in service or router code —
 always import `settings` from this module.
 """
+
 import os
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

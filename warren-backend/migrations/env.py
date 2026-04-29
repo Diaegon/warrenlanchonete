@@ -3,6 +3,7 @@
 Reads DATABASE_URL from environment, imports ORM Base metadata so autogenerate
 works correctly, and configures the migration runner for both online and offline modes.
 """
+
 import os
 from logging.config import fileConfig
 
@@ -28,17 +29,18 @@ if config.config_file_name is not None:
 # Metadata for autogenerate support
 target_metadata = Base.metadata
 
+
 def _make_sync_url(url: str) -> str:
     """Convert async SQLAlchemy URLs to sync URLs for Alembic."""
-    return (
-        url
-        .replace("postgresql+asyncpg://", "postgresql://")
-        .replace("sqlite+aiosqlite://", "sqlite://")
+    return url.replace("postgresql+asyncpg://", "postgresql://").replace(
+        "sqlite+aiosqlite://", "sqlite://"
     )
 
 
 # Prefer DATABASE_URL from shell/.env, otherwise use alembic.ini dev default.
-database_url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+database_url = os.environ.get("DATABASE_URL") or config.get_main_option(
+    "sqlalchemy.url"
+)
 config.set_main_option("sqlalchemy.url", _make_sync_url(database_url))
 
 

@@ -6,6 +6,7 @@ Tests:
     - Returns [] (and logs error) when the vectorstore raises
     - Query string built correctly for each debt level and sector
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -22,17 +23,30 @@ class TestRAGServiceRetrieve:
         from app.services.rag_service import RAGService
 
         # Mock the vectorstore to avoid real OpenAI embedding calls
-        with patch("app.services.rag_service.Chroma") as mock_chroma_cls, \
-             patch("app.services.rag_service.OpenAIEmbeddings"):
-
+        with (
+            patch("app.services.rag_service.Chroma") as mock_chroma_cls,
+            patch("app.services.rag_service.OpenAIEmbeddings"),
+        ):
             mock_vectorstore = MagicMock()
             mock_doc1 = MagicMock()
-            mock_doc1.page_content = "A truly wonderful business earns very high returns."
-            mock_doc1.metadata = {"year": 1992, "letter_type": "shareholder_letter", "topic": "", "source_file": "1992_letter.pdf"}
+            mock_doc1.page_content = (
+                "A truly wonderful business earns very high returns."
+            )
+            mock_doc1.metadata = {
+                "year": 1992,
+                "letter_type": "shareholder_letter",
+                "topic": "",
+                "source_file": "1992_letter.pdf",
+            }
 
             mock_doc2 = MagicMock()
             mock_doc2.page_content = "Price is what you pay. Value is what you get."
-            mock_doc2.metadata = {"year": 2000, "letter_type": "shareholder_letter", "topic": "", "source_file": "2000_letter.pdf"}
+            mock_doc2.metadata = {
+                "year": 2000,
+                "letter_type": "shareholder_letter",
+                "topic": "",
+                "source_file": "2000_letter.pdf",
+            }
 
             mock_vectorstore.similarity_search.return_value = [mock_doc1, mock_doc2]
             mock_chroma_cls.return_value = mock_vectorstore
@@ -57,9 +71,10 @@ class TestRAGServiceRetrieve:
         """Returns [] when the vectorstore similarity_search returns empty."""
         from app.services.rag_service import RAGService
 
-        with patch("app.services.rag_service.Chroma") as mock_chroma_cls, \
-             patch("app.services.rag_service.OpenAIEmbeddings"):
-
+        with (
+            patch("app.services.rag_service.Chroma") as mock_chroma_cls,
+            patch("app.services.rag_service.OpenAIEmbeddings"),
+        ):
             mock_vectorstore = MagicMock()
             mock_vectorstore.similarity_search.return_value = []
             mock_chroma_cls.return_value = mock_vectorstore
@@ -78,11 +93,14 @@ class TestRAGServiceRetrieve:
         """Returns [] and logs error when vectorstore raises an exception."""
         from app.services.rag_service import RAGService
 
-        with patch("app.services.rag_service.Chroma") as mock_chroma_cls, \
-             patch("app.services.rag_service.OpenAIEmbeddings"):
-
+        with (
+            patch("app.services.rag_service.Chroma") as mock_chroma_cls,
+            patch("app.services.rag_service.OpenAIEmbeddings"),
+        ):
             mock_vectorstore = MagicMock()
-            mock_vectorstore.similarity_search.side_effect = RuntimeError("ChromaDB unavailable")
+            mock_vectorstore.similarity_search.side_effect = RuntimeError(
+                "ChromaDB unavailable"
+            )
             mock_chroma_cls.return_value = mock_vectorstore
 
             svc = RAGService(chroma_client=chroma_client)
@@ -103,14 +121,18 @@ class TestRAGServiceMalformedMetadata:
         """Documents without a 'year' key in metadata return citation with year=0."""
         from app.services.rag_service import RAGService
 
-        with patch("app.services.rag_service.Chroma") as mock_chroma_cls, \
-             patch("app.services.rag_service.OpenAIEmbeddings"):
-
+        with (
+            patch("app.services.rag_service.Chroma") as mock_chroma_cls,
+            patch("app.services.rag_service.OpenAIEmbeddings"),
+        ):
             mock_vectorstore = MagicMock()
             mock_doc = MagicMock()
             mock_doc.page_content = "Price is what you pay."
             # No 'year' key in metadata
-            mock_doc.metadata = {"letter_type": "shareholder_letter", "source_file": "unknown.pdf"}
+            mock_doc.metadata = {
+                "letter_type": "shareholder_letter",
+                "source_file": "unknown.pdf",
+            }
             mock_vectorstore.similarity_search.return_value = [mock_doc]
             mock_chroma_cls.return_value = mock_vectorstore
 
@@ -126,13 +148,18 @@ class TestRAGServiceMalformedMetadata:
         """A doc without 'year' does not discard valid docs with 'year'."""
         from app.services.rag_service import RAGService
 
-        with patch("app.services.rag_service.Chroma") as mock_chroma_cls, \
-             patch("app.services.rag_service.OpenAIEmbeddings"):
-
+        with (
+            patch("app.services.rag_service.Chroma") as mock_chroma_cls,
+            patch("app.services.rag_service.OpenAIEmbeddings"),
+        ):
             mock_vectorstore = MagicMock()
             good_doc = MagicMock()
             good_doc.page_content = "Wonderful businesses."
-            good_doc.metadata = {"year": 1992, "letter_type": "shareholder_letter", "source_file": "1992_letter.pdf"}
+            good_doc.metadata = {
+                "year": 1992,
+                "letter_type": "shareholder_letter",
+                "source_file": "1992_letter.pdf",
+            }
 
             bad_doc = MagicMock()
             bad_doc.page_content = "Malformed document."
@@ -154,38 +181,49 @@ class TestRAGServiceMalformedMetadata:
 class TestRAGServiceQueryConstruction:
     """Tests for query string construction in RAGService.retrieve()."""
 
-    async def _get_query_string(self, chroma_client, ticker, sector, roe, divida_ebitda):
+    async def _get_query_string(
+        self, chroma_client, ticker, sector, roe, divida_ebitda
+    ):
         """Helper: run retrieve() and capture the query passed to similarity_search."""
         from app.services.rag_service import RAGService
 
-        with patch("app.services.rag_service.Chroma") as mock_chroma_cls, \
-             patch("app.services.rag_service.OpenAIEmbeddings"):
-
+        with (
+            patch("app.services.rag_service.Chroma") as mock_chroma_cls,
+            patch("app.services.rag_service.OpenAIEmbeddings"),
+        ):
             mock_vectorstore = MagicMock()
             mock_vectorstore.similarity_search.return_value = []
             mock_chroma_cls.return_value = mock_vectorstore
 
             svc = RAGService(chroma_client=chroma_client)
-            await svc.retrieve(ticker=ticker, sector=sector, roe=roe, divida_ebitda=divida_ebitda)
+            await svc.retrieve(
+                ticker=ticker, sector=sector, roe=roe, divida_ebitda=divida_ebitda
+            )
 
             call_args = mock_vectorstore.similarity_search.call_args
             return call_args[0][0]  # First positional arg is the query string
 
-    async def test_query_contains_low_debt_when_divida_ebitda_below_1(self, chroma_client):
+    async def test_query_contains_low_debt_when_divida_ebitda_below_1(
+        self, chroma_client
+    ):
         """divida_ebitda < 1.0 → 'low debt' in query."""
         query = await self._get_query_string(
             chroma_client, "WEGE3", "Industrial", 25.0, 0.4
         )
         assert "low debt" in query
 
-    async def test_query_contains_moderate_debt_when_divida_ebitda_1_to_3(self, chroma_client):
+    async def test_query_contains_moderate_debt_when_divida_ebitda_1_to_3(
+        self, chroma_client
+    ):
         """1.0 <= divida_ebitda < 3.0 → 'moderate debt' in query."""
         query = await self._get_query_string(
             chroma_client, "ITUB4", "Financeiro", 18.0, 2.0
         )
         assert "moderate debt" in query
 
-    async def test_query_contains_high_debt_when_divida_ebitda_above_3(self, chroma_client):
+    async def test_query_contains_high_debt_when_divida_ebitda_above_3(
+        self, chroma_client
+    ):
         """divida_ebitda >= 3.0 → 'high debt' in query."""
         query = await self._get_query_string(
             chroma_client, "PETR4", "Energia", 12.0, 4.5

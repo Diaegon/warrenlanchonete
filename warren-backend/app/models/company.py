@@ -1,4 +1,5 @@
 """SQLAlchemy ORM model for the companies table."""
+
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 

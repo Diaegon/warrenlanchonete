@@ -6,11 +6,11 @@ Tests:
     - Chunks stored with correct metadata
     - Second run on same file is idempotent (count doesn't increase)
 """
+
 from __future__ import annotations
 
 import re
 from unittest.mock import MagicMock, patch
-
 
 
 class TestParseYear:
@@ -99,8 +99,10 @@ class TestIngestPDF:
 
         mock_doc = self._make_mock_fitz_doc([page_text])
 
-        with patch("app.rag.ingest.fitz.open", return_value=mock_doc), \
-             patch("app.rag.ingest.OpenAIEmbeddings") as mock_embeddings_cls:
+        with (
+            patch("app.rag.ingest.fitz.open", return_value=mock_doc),
+            patch("app.rag.ingest.OpenAIEmbeddings") as mock_embeddings_cls,
+        ):
             # Mock the embedding function to return fixed vectors
             mock_ef = MagicMock()
             mock_ef.embed_documents.return_value = [[0.1] * 10]
@@ -108,7 +110,9 @@ class TestIngestPDF:
             mock_embeddings_cls.return_value = mock_ef
 
             collection = chroma_client.get_or_create_collection("test_metadata_1992")
-            ingest_pdf(source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf")
+            ingest_pdf(
+                source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf"
+            )
 
         # Verify at least one document was stored
         results = collection.get(include=["metadatas", "documents"])
@@ -143,7 +147,9 @@ class TestIngestPDF:
         collection = chroma_client.get_or_create_collection("test_chunk_ids_2000")
 
         with patch("app.rag.ingest.fitz.open", return_value=mock_doc):
-            ingest_pdf(source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf")
+            ingest_pdf(
+                source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf"
+            )
 
         results = collection.get(include=["metadatas"])
         # There must be exactly one document from 2000
@@ -178,7 +184,13 @@ class TestIngestPDF:
         # Ingest "2000_letter.pdf" — same year, different source file
         mock_doc2 = self._make_mock_fitz_doc([passage])
         with patch("app.rag.ingest.fitz.open", return_value=mock_doc2):
-            ingest_pdf("2000_letter.pdf", 2000, collection, mock_ef, pdf_path="/fake/2000_letter.pdf")
+            ingest_pdf(
+                "2000_letter.pdf",
+                2000,
+                collection,
+                mock_ef,
+                pdf_path="/fake/2000_letter.pdf",
+            )
 
         # Both chunks must be stored — IDs must not collide
         assert collection.count() == 2, (
@@ -206,14 +218,18 @@ class TestIngestPDF:
         collection = chroma_client.get_or_create_collection("test_idempotent_1992")
 
         with patch("app.rag.ingest.fitz.open", return_value=mock_doc):
-            ingest_pdf(source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf")
+            ingest_pdf(
+                source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf"
+            )
             count_after_first = collection.count()
 
             # Reset mock_doc iterator for second call
             mock_doc.__iter__ = MagicMock(
                 return_value=iter([self._make_mock_fitz_page(passage)])
             )
-            ingest_pdf(source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf")
+            ingest_pdf(
+                source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf"
+            )
             count_after_second = collection.count()
 
         assert count_after_second == count_after_first, (
@@ -243,12 +259,16 @@ class TestIngestPDF:
         collection = chroma_client.get_or_create_collection("test_filter_short_2007")
 
         with patch("app.rag.ingest.fitz.open", return_value=mock_doc):
-            ingest_pdf(source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf")
+            ingest_pdf(
+                source_file, year, collection, mock_ef, pdf_path="/fake/path.pdf"
+            )
 
         # Only the long chunk should be stored
         results = collection.get(include=["documents"])
         for doc_text in results["documents"]:
-            assert len(doc_text) >= 100, f"Short chunk was not filtered: '{doc_text[:50]}...'"
+            assert len(doc_text) >= 100, (
+                f"Short chunk was not filtered: '{doc_text[:50]}...'"
+            )
 
 
 class TestIngestHTML:
@@ -276,10 +296,14 @@ class TestIngestHTML:
         try:
             mock_ef = MagicMock()
             # Return one embedding vector per chunk (however many there are)
-            mock_ef.embed_documents.side_effect = lambda texts: [[0.1 * i] * 10 for i in range(1, len(texts) + 1)]
+            mock_ef.embed_documents.side_effect = lambda texts: [
+                [0.1 * i] * 10 for i in range(1, len(texts) + 1)
+            ]
             collection = chroma_client.get_or_create_collection("test_html_1984")
 
-            count = ingest_pdf("1984.html", 1984, collection, mock_ef, pdf_path=tmp_path)
+            count = ingest_pdf(
+                "1984.html", 1984, collection, mock_ef, pdf_path=tmp_path
+            )
             assert count > 0
 
             results = collection.get(include=["metadatas"])
@@ -306,7 +330,9 @@ class TestIngestHTML:
             mock_ef = MagicMock()
             collection = chroma_client.get_or_create_collection("test_binary_skip")
 
-            count = ingest_pdf("1985.html", 1985, collection, mock_ef, pdf_path=tmp_path)
+            count = ingest_pdf(
+                "1985.html", 1985, collection, mock_ef, pdf_path=tmp_path
+            )
             assert count == 0
             assert collection.count() == 0
         finally:
@@ -324,21 +350,26 @@ class TestRunIngestion:
         bad_file = tmp_path / "letter_1992.pdf"
         bad_file.write_bytes(b"fake")
 
-        with patch("app.rag.ingest.get_collection") as mock_get_col, \
-             patch("app.rag.ingest.OpenAIEmbeddings"), \
-             patch("app.rag.ingest.settings") as mock_settings:
-
+        with (
+            patch("app.rag.ingest.get_collection") as mock_get_col,
+            patch("app.rag.ingest.OpenAIEmbeddings"),
+            patch("app.rag.ingest.settings") as mock_settings,
+        ):
             mock_settings.EMBEDDING_MODEL = "text-embedding-3-small"
             mock_get_col.return_value = MagicMock()
 
             import structlog.testing
+
             with structlog.testing.capture_logs() as captured:
                 from app.rag.ingest import run
+
                 run(source_dir=tmp_path)
 
         warning_events = [
-            log for log in captured
-            if log.get("log_level") == "warning" or "skip" in log.get("event", "").lower()
+            log
+            for log in captured
+            if log.get("log_level") == "warning"
+            or "skip" in log.get("event", "").lower()
         ]
         assert len(warning_events) > 0, (
             f"Expected a warning log for non-matching filename. Got: {captured}"

@@ -3,6 +3,7 @@
 Run after Alembic migrations:
     uv run python -m app.db.seed
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -206,7 +207,11 @@ async def seed_database(session: AsyncSession) -> SeedResult:
         ticker = row["ticker"]
         company = companies_by_ticker.get(ticker)
         if company is None:
-            logger.warning("database.seed.financial_skipped", ticker=ticker, reason="company_missing")
+            logger.warning(
+                "database.seed.financial_skipped",
+                ticker=ticker,
+                reason="company_missing",
+            )
             continue
         year = row["year"]
         values = {key: value for key, value in row.items() if key != "ticker"}
@@ -239,7 +244,9 @@ async def main() -> None:
     load_dotenv()
     database_url = os.environ.get("DATABASE_URL", DEV_DATABASE_URL)
     engine = create_async_engine(_make_async_url(database_url), pool_pre_ping=True)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async with session_factory() as session:
         result = await seed_database(session)

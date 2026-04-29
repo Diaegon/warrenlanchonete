@@ -1,4 +1,5 @@
 """Tests for fundamentals CSV import."""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -62,7 +63,9 @@ class TestImportFundamentalsCsv:
         assert financial.lucro_liquido == Decimal("5789000000.00")
         assert financial.divida_ebitda == Decimal("0.4000")
 
-    async def test_import_updates_existing_financials(self, db_session, tmp_path) -> None:
+    async def test_import_updates_existing_financials(
+        self, db_session, tmp_path
+    ) -> None:
         """Importer updates the same ticker/year instead of duplicating rows."""
         await _seed_company(db_session, "WEGE3")
         csv_path = tmp_path / "fundamentals.csv"
@@ -99,7 +102,9 @@ class TestImportFundamentalsCsv:
         assert financials[0].roe == Decimal("31.1000")
         assert financials[0].market_cap == Decimal("170000000000.00")
 
-    async def test_import_keeps_empty_numeric_cells_as_null(self, db_session, tmp_path) -> None:
+    async def test_import_keeps_empty_numeric_cells_as_null(
+        self, db_session, tmp_path
+    ) -> None:
         """Empty numeric cells import as NULL so partial data can be loaded."""
         await _seed_company(db_session, "PETR4")
         csv_path = tmp_path / "fundamentals.csv"
@@ -172,7 +177,9 @@ class TestImportFundamentalsCsv:
         assert result.financials_created == 1
         assert financials[0].year == 2023
 
-    async def test_import_missing_file_can_be_allowed(self, db_session, tmp_path) -> None:
+    async def test_import_missing_file_can_be_allowed(
+        self, db_session, tmp_path
+    ) -> None:
         """Docker startup can skip the import before a fundamentals file exists."""
         from app.db.import_fundamentals import import_fundamentals_csv
 
@@ -185,7 +192,9 @@ class TestImportFundamentalsCsv:
         assert result.rows_read == 0
         assert result.financials_created == 0
 
-    async def test_import_missing_file_raises_by_default(self, db_session, tmp_path) -> None:
+    async def test_import_missing_file_raises_by_default(
+        self, db_session, tmp_path
+    ) -> None:
         """Manual imports should fail clearly when the CSV path is wrong."""
         from app.db.import_fundamentals import import_fundamentals_csv
 

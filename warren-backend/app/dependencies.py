@@ -6,6 +6,7 @@ Provides:
     get_analysis_service: Returns the AnalysisService singleton.
     get_portfolio_service: Returns a PortfolioService with injected dependencies.
 """
+
 from __future__ import annotations
 
 import structlog

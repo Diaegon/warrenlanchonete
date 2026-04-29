@@ -12,6 +12,7 @@ Usage:
     class MyModel(Base):
         ...
 """
+
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -27,7 +28,10 @@ from app.config import settings
 Base = declarative_base()
 
 # Build async engine — uses asyncpg for PostgreSQL, aiosqlite for SQLite (tests)
-_database_url = settings.DATABASE_URL if settings is not None else "sqlite+aiosqlite:///:memory:"
+_database_url = (
+    settings.DATABASE_URL if settings is not None else "sqlite+aiosqlite:///:memory:"
+)
+
 
 # Convert sync psycopg2/postgresql URLs to async equivalents if needed
 def _make_async_url(url: str) -> str:

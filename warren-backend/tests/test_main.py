@@ -2,6 +2,7 @@
 
 TDD: Written before implementation.
 """
+
 from __future__ import annotations
 
 from httpx import AsyncClient
@@ -45,6 +46,7 @@ class TestReadyEndpoint:
     ) -> None:
         """GET /ready returns 503 when app.state has no chroma_client."""
         from app.main import app
+
         # Ensure chroma_client is absent from state
         if hasattr(app.state, "chroma_client"):
             del app.state.chroma_client

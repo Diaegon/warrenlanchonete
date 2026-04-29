@@ -2,6 +2,7 @@
 
 TDD: tests use in-memory SQLite via db_session fixture.
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -57,7 +58,9 @@ async def _seed_companies(db_session) -> None:
 class TestGetCompanies:
     """Tests for GET /api/companies."""
 
-    async def test_get_companies_returns_all(self, async_client: AsyncClient, db_session) -> None:
+    async def test_get_companies_returns_all(
+        self, async_client: AsyncClient, db_session
+    ) -> None:
         """GET /api/companies returns all companies."""
         await _seed_companies(db_session)
         response = await async_client.get("/api/companies")
@@ -69,7 +72,9 @@ class TestGetCompanies:
         assert "WEGE3" in tickers
         assert "PETR4" in tickers
 
-    async def test_get_companies_empty_database(self, async_client: AsyncClient) -> None:
+    async def test_get_companies_empty_database(
+        self, async_client: AsyncClient
+    ) -> None:
         """GET /api/companies returns empty list when no companies exist."""
         response = await async_client.get("/api/companies")
         assert response.status_code == 200

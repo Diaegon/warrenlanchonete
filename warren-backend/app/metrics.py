@@ -8,6 +8,7 @@ Metrics:
     openai_duration_seconds: Histogram of OpenAI call duration by call_type.
     rag_results_count: Histogram of RAG retrieval result counts per query.
 """
+
 from prometheus_client import Counter, Histogram
 
 openai_calls_total = Counter(

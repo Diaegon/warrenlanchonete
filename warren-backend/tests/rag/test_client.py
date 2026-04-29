@@ -4,6 +4,7 @@ Tests:
     - get_collection returns a collection named 'buffett_letters'
     - get_collection is idempotent (two calls return same collection)
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -48,8 +49,12 @@ class TestGetChromaClient:
 
         try:
             # Patch both PersistentClient and settings to avoid needing a .env
-            with patch("app.rag.client.chromadb.PersistentClient", return_value=ephemeral), \
-                 patch("app.rag.client.settings") as mock_settings:
+            with (
+                patch(
+                    "app.rag.client.chromadb.PersistentClient", return_value=ephemeral
+                ),
+                patch("app.rag.client.settings") as mock_settings,
+            ):
                 mock_settings.CHROMA_PERSIST_DIR = "./test_rag_data"
                 result = client_module.get_chroma_client()
                 assert result is not None

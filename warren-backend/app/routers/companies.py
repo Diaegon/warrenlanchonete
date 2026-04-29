@@ -7,6 +7,7 @@ Routes:
     GET /companies       — List all companies ordered by ticker.
     GET /companies/{ticker} — Get company detail with full financial history.
 """
+
 from __future__ import annotations
 
 import structlog
@@ -42,9 +43,7 @@ async def list_companies(db: AsyncSession = Depends(get_db)) -> list[Company]:
 
 
 @router.get("/{ticker}", response_model=CompanyDetailSchema)
-async def get_company(
-    ticker: str, db: AsyncSession = Depends(get_db)
-) -> Company:
+async def get_company(ticker: str, db: AsyncSession = Depends(get_db)) -> Company:
     """Get a company by ticker with its full financial history.
 
     Args:
@@ -67,7 +66,9 @@ async def get_company(
 
     if company is None:
         logger.warning("companies.not_found", ticker=ticker)
-        raise HTTPException(status_code=404, detail=f"Company with ticker {ticker} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Company with ticker {ticker} not found"
+        )
 
     logger.info("companies.detail", ticker=ticker)
     return company

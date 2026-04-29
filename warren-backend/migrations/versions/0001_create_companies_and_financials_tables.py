@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-04-27 00:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -32,7 +33,9 @@ def upgrade() -> None:
         sa.UniqueConstraint("ticker"),
     )
     op.create_index(op.f("ix_companies_ticker"), "companies", ["ticker"], unique=True)
-    op.create_index("ix_companies_asset_type", "companies", ["asset_type"], unique=False)
+    op.create_index(
+        "ix_companies_asset_type", "companies", ["asset_type"], unique=False
+    )
 
     # financials table
     op.create_table(

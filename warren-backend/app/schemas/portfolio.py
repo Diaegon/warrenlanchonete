@@ -2,6 +2,7 @@
 
 These schemas define the API contract for POST /api/portfolio/analyze.
 """
+
 from __future__ import annotations
 
 from enum import Enum

@@ -7,6 +7,7 @@ Expected CSV columns:
 Run after companies have been seeded:
     uv run python -m app.db.import_fundamentals --path ../warren-ingestion/data/processed/fundamentals.csv
 """
+
 from __future__ import annotations
 
 import argparse
@@ -65,7 +66,9 @@ def _empty_to_none(value: str | None) -> str | None:
     return stripped or None
 
 
-def _parse_decimal(value: str | None, *, row_number: int, column: str) -> Decimal | None:
+def _parse_decimal(
+    value: str | None, *, row_number: int, column: str
+) -> Decimal | None:
     """Parse a nullable decimal CSV cell."""
     normalized = _empty_to_none(value)
     if normalized is None:
@@ -73,7 +76,9 @@ def _parse_decimal(value: str | None, *, row_number: int, column: str) -> Decima
     try:
         return Decimal(normalized.replace(",", "."))
     except InvalidOperation as exc:
-        raise ValueError(f"row {row_number}: invalid decimal for {column}: {value!r}") from exc
+        raise ValueError(
+            f"row {row_number}: invalid decimal for {column}: {value!r}"
+        ) from exc
 
 
 def _parse_year(value: str | None, *, row_number: int) -> int:
@@ -99,7 +104,9 @@ def _validate_header(fieldnames: list[str] | None) -> None:
         raise ValueError(f"fundamentals CSV missing columns: {', '.join(missing)}")
 
 
-def _row_values(row: dict[str, str], *, row_number: int) -> tuple[str, int, dict[str, Decimal | int | None]]:
+def _row_values(
+    row: dict[str, str], *, row_number: int
+) -> tuple[str, int, dict[str, Decimal | int | None]]:
     """Convert a CSV row into ticker, year, and Financial values."""
     ticker = (_empty_to_none(row.get("ticker")) or "").upper()
     if not ticker:
@@ -108,7 +115,9 @@ def _row_values(row: dict[str, str], *, row_number: int) -> tuple[str, int, dict
     year = _parse_year(row.get("year"), row_number=row_number)
     values: dict[str, Decimal | int | None] = {"year": year}
     for column in NUMERIC_COLUMNS:
-        values[column] = _parse_decimal(row.get(column), row_number=row_number, column=column)
+        values[column] = _parse_decimal(
+            row.get(column), row_number=row_number, column=column
+        )
 
     return ticker, year, values
 
@@ -150,10 +159,16 @@ async def import_fundamentals_csv(
                 ticker, year, values = _row_values(row, row_number=row_number)
             except ValueError as exc:
                 rows_skipped += 1
-                logger.warning("fundamentals.import.row_invalid", error=str(exc), row_number=row_number)
+                logger.warning(
+                    "fundamentals.import.row_invalid",
+                    error=str(exc),
+                    row_number=row_number,
+                )
                 continue
 
-            company = await session.scalar(select(Company).where(Company.ticker == ticker))
+            company = await session.scalar(
+                select(Company).where(Company.ticker == ticker)
+            )
             if company is None:
                 rows_skipped += 1
                 logger.warning(
@@ -196,7 +211,9 @@ def _resolve_csv_path(path: str | None) -> Path:
 
 def _parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Import Warren fundamentals CSV into the DB.")
+    parser = argparse.ArgumentParser(
+        description="Import Warren fundamentals CSV into the DB."
+    )
     parser.add_argument("--path", help="Path to fundamentals.csv")
     parser.add_argument(
         "--allow-missing",
@@ -213,7 +230,9 @@ async def main() -> None:
     csv_path = _resolve_csv_path(args.path)
     database_url = os.environ.get("DATABASE_URL", DEV_DATABASE_URL)
     engine = create_async_engine(_make_async_url(database_url), pool_pre_ping=True)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = async_sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
 
     async with session_factory() as session:
         result = await import_fundamentals_csv(
