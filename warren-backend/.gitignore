@@ -1,6 +1,6 @@
 .env
-rag_data/chroma/
-rag_data/pdfs/
+rag_data/*
+!rag_data/.gitkeep
 __pycache__/
 *.pyc
 .pytest_cache/
